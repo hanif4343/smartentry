@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F1F5F9">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/primary"
+            app:titleTextColor="@color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- Image area -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📷 ছবি যোগ করুন"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#1E293B"
+                        android:layout_marginBottom="10dp"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Button
+                            android:id="@+id/btn_camera"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:text="📸 ক্যামেরা"
+                            android:backgroundTint="#4F46E5"
+                            android:textColor="#FFFFFF"
+                            android:textSize="12sp"
+                            style="@style/Widget.MaterialComponents.Button"/>
+
+                        <Button
+                            android:id="@+id/btn_gallery"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:text="🖼️ গ্যালারি"
+                            android:backgroundTint="#0F172A"
+                            android:textColor="#FFFFFF"
+                            android:textSize="12sp"
+                            style="@style/Widget.MaterialComponents.Button"/>
+
+                        <Button
+                            android:id="@+id/btn_clear_images"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:text="✕"
+                            android:backgroundTint="#EF4444"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:padding="0dp"
+                            style="@style/Widget.MaterialComponents.Button"/>
+                    </LinearLayout>
+
+                    <!-- Image grid -->
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp">
+                        <LinearLayout
+                            android:id="@+id/image_grid"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+
+                    <TextView
+                        android:id="@+id/tv_image_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="কোনো ছবি নেই"
+                        android:textSize="11sp"
+                        android:textColor="#64748B"
+                        android:layout_marginTop="6dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Sheet/Subject settings -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️ প্রশ্নের ধরন"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#1E293B"
+                        android:layout_marginBottom="10dp"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_sheet"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/spinner_bg"
+                        android:paddingStart="12dp"
+                        android:layout_marginBottom="8dp"/>
+
+                    <EditText
+                        android:id="@+id/et_subject"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:hint="Subject (যেমন: বাংলা, গণিত)"
+                        android:background="@drawable/input_bg"
+                        android:paddingStart="12dp"
+                        android:textSize="13sp"
+                        android:layout_marginBottom="8dp"
+                        android:inputType="text"/>
+
+                    <EditText
+                        android:id="@+id/et_sub_topic"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:hint="Sub-Topic (যেমন: সন্ধি, লাভ-ক্ষতি)"
+                        android:background="@drawable/input_bg"
+                        android:paddingStart="12dp"
+                        android:textSize="13sp"
+                        android:inputType="text"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Steps -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔄 Processing Steps"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#1E293B"
+                        android:layout_marginBottom="10dp"/>
+
+                    <!-- Progress -->
+                    <ProgressBar
+                        android:id="@+id/progress_bar"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        android:layout_marginBottom="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_progress"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:textColor="#4F46E5"
+                        android:visibility="gone"
+                        android:layout_marginBottom="8dp"/>
+
+                    <Button
+                        android:id="@+id/btn_run_ocr"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Step 1: OCR চালাও (ছবি → Text)"
+                        android:backgroundTint="#1E293B"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="6dp"
+                        android:enabled="false"
+                        style="@style/Widget.MaterialComponents.Button"/>
+
+                    <Button
+                        android:id="@+id/btn_run_ai"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Step 2: AI দিয়ে Format করো"
+                        android:backgroundTint="#4F46E5"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="6dp"
+                        android:enabled="false"
+                        android:alpha="0.4"
+                        style="@style/Widget.MaterialComponents.Button"/>
+
+                    <Button
+                        android:id="@+id/btn_send_to_bulk"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:text="Step 3: Bulk এ পাঠাও ✅"
+                        android:backgroundTint="#10B981"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:enabled="false"
+                        android:alpha="0.4"
+                        style="@style/Widget.MaterialComponents.Button"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- OCR Result -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/layout_ocr_result"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:visibility="gone"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="📄 OCR Result"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:textColor="#1E293B"/>
+                        <Button
+                            android:id="@+id/btn_edit_ocr"
+                            android:layout_width="wrap_content"
+                            android:layout_height="34dp"
+                            android:text="✏️ Edit"
+                            android:backgroundTint="#F1F5F9"
+                            android:textColor="#1E293B"
+                            android:textSize="11sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_ocr_stats"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="10sp"
+                        android:textColor="#94A3B8"
+                        android:layout_marginBottom="6dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_ocr_result"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#F8FAFC"
+                        android:padding="10dp"
+                        android:textSize="11sp"
+                        android:textColor="#1E293B"
+                        android:fontFamily="monospace"
+                        android:maxLines="15"
+                        android:ellipsize="end"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Parsed Preview -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/layout_parsed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:visibility="gone"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:id="@+id/tv_parsed_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="#10B981"
+                        android:layout_marginBottom="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_parsed_breakdown"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:textColor="#64748B"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_parsed_preview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#F0FDF4"
+                        android:padding="10dp"
+                        android:textSize="11sp"
+                        android:textColor="#1E293B"
+                        android:maxLines="20"
+                        android:ellipsize="end"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

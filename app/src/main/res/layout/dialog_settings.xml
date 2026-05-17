@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gemini API Key"
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:layout_marginBottom="4dp"/>
+    <EditText
+        android:id="@+id/et_gemini_key"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="AIza..."
+        android:inputType="textPassword"
+        android:textSize="13sp"
+        android:layout_marginBottom="14dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GAS Script URL (Entry App)"
+        android:textSize="12sp"
+        android:textColor="#64748B"
+        android:layout_marginBottom="4dp"/>
+    <EditText
+        android:id="@+id/et_script_url"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:hint="https://script.google.com/..."
+        android:inputType="textUri"
+        android:textSize="11sp"/>
+</LinearLayout>

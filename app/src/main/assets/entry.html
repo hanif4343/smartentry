@@ -1,0 +1,3024 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Study — Admin Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)']]}, svg:{fontCache:'global'} };
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let _actx = null;
+        function getACtx(){if(!_actx)_actx=new AudioCtx();return _actx;}
+        function playClick(){try{const c=getACtx(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.setValueAtTime(880,c.currentTime);o.frequency.exponentialRampToValueAtTime(440,c.currentTime+0.06);g.gain.setValueAtTime(0.3,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.12);o.start(c.currentTime);o.stop(c.currentTime+0.13);}catch(_){}}
+        function playBulkDone(){try{const c=getACtx();[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='triangle';const t=c.currentTime+i*0.18;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.35,t+0.05);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.start(t);o.stop(t+0.42);});}catch(_){}}
+        function playOfflineSaved(){try{const c=getACtx(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='square';o.frequency.setValueAtTime(330,c.currentTime);o.frequency.exponentialRampToValueAtTime(220,c.currentTime+0.15);g.gain.setValueAtTime(0.15,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.2);o.start(c.currentTime);o.stop(c.currentTime+0.22);}catch(_){}}
+        function playSuccess(){try{const c=getACtx(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='triangle';o.frequency.setValueAtTime(523,c.currentTime);o.frequency.exponentialRampToValueAtTime(1047,c.currentTime+0.15);g.gain.setValueAtTime(0.25,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.3);o.start(c.currentTime);o.stop(c.currentTime+0.32);}catch(_){}}
+        async function registerSW(){if(!('serviceWorker' in navigator))return;try{const reg=await navigator.serviceWorker.register('sw.js');navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='SYNC_DONE'){playBulkDone();showOfflineSyncToast(e.data.sent);updateQueueBadge();}});window.addEventListener('online',()=>{reg.sync?.register('sync-questions').catch(()=>{});updateOnlineStatus();});window.addEventListener('offline',()=>updateOnlineStatus());}catch(e){}}
+        window.onload=function(){const s=localStorage.getItem('last_added_id');if(s)document.getElementById('lastAddedId').innerText=s;};
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+        body { font-family: 'Noto Sans Bengali', sans-serif; background: #f8fafc; padding: 10px; }
+        .glass-card { background: white; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: visible; position: relative; }
+        .input-box { border: 2px solid #e2e8f0; border-radius: 12px; padding: 12px 12px 12px 40px; width: 100%; background: #fff; font-size: 14px; transition: 0.3s; color: #1e293b; }
+        .input-box:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        datalist { background-color: white; }
+        option { font-weight: 600; color: #000; }
+        .input-group { position: relative; display: flex; flex-direction: column; }
+        .input-icon { position: absolute; left: 14px; top: 38px; color: #94a3b8; }
+        .tab-btn { padding: 10px 4px; font-size: 12px; font-weight: 700; border-radius: 12px; cursor: pointer; text-align: center; color: #64748b; background: #fff; border: 1px solid #e2e8f0; }
+        .active-tab { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .label-text { font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 5px; margin-left: 5px; display: block; text-transform: uppercase; }
+        .hidden-box { display: none !important; }
+        .btn-submit { background: linear-gradient(90deg, #1e40af, #3b82f6); color: white; padding: 16px; border-radius: 15px; width: 100%; font-weight: 700; font-size: 16px; margin-top: 10px; }
+        #magic-inline-box {
+            background: #ffffff; border: 2px solid #3b82f6; border-radius: 12px; padding: 8px 6px;
+            margin-bottom: 5px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 50; position: sticky; top: 5px;
+        }
+        .close-magic { position: absolute; right: -8px; top: -10px; color: #ef4444; background: white; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #master-preview {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;
+            max-height: 180px; overflow-y: auto; font-size: 14px; margin-top: 5px; color: #1e293b;
+            display: flex; flex-direction: column-reverse;
+        }
+        .tools-row { display: flex; justify-content: space-between; align-items: center; gap: 2px; }
+        .btn-tool { padding: 5px 6px; border-radius: 6px; font-size: 9px; font-weight: 800; border: 1px solid #cbd5e1; background: #fff; min-width: 32px; text-align: center; }
+        .btn-img-upload { background: #ecfdf5; border-color: #10b981; color: #059669; }
+        .type-badge { padding: 8px 20px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #e2e8f0; background: #fff; }
+        .type-active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .tool-toggle-btn { position: absolute; right: 10px; top: 28px; color: #3b82f6; font-size: 18px; cursor: pointer; z-index: 10; }
+        .ai-magic-btn { position: absolute; right: 40px; top: 28px; color: #8b5cf6; font-size: 18px; cursor: pointer; z-index: 10; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; background: white; }
+        td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+        .preview-img { max-width: 100%; border-radius: 8px; margin: 5px 0; border: 1px solid #ddd; display: block; }
+        .custom-lock { width: 25px; height: 25px; accent-color: #3b82f6; cursor: pointer; }
+        .qpaper-btn-small { border: 2px dashed #a855f7; border-radius: 12px; height: 45px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #faf5ff; cursor: pointer; }
+        .search-area { background: #fefce8; border: 1px solid #fde047; border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-end; }
+        .btn-fetch { background: #10b981; color: white; padding: 10px 15px; border-radius: 10px; font-weight: 800; font-size: 12px; min-width: 80px; display: flex; justify-content: center; align-items: center; }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        .btn-loading { position: relative; color: transparent !important; pointer-events: none; opacity: 0.8; }
+        .btn-loading::after { content:""; position:absolute; width:18px; height:18px; border:3px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:#fff; animation:spin 0.8s linear infinite; }
+        .ai-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%{opacity:1} 50%{opacity:0.4} 100%{opacity:1} }
+
+        /* Bulk */
+        .bulk-progress-wrap { background:#e2e8f0; border-radius:999px; height:12px; overflow:hidden; margin-top:4px; display:none; }
+        .bulk-progress-bar  { height:100%; background:linear-gradient(90deg,#6366f1,#3b82f6,#10b981); border-radius:999px; width:0%; transition:width 0.25s ease; }
+        .bulk-log { max-height:110px; overflow-y:auto; font-size:10px; background:#f1f5f9; border-radius:10px; padding:8px 10px; margin-top:4px; display:none; line-height:1.7; }
+        .bulk-log .log-ok   { color:#059669; }
+        .bulk-log .log-err  { color:#dc2626; font-weight:700; }
+        .bulk-log .log-skip { color:#d97706; font-style:italic; }
+        .bulk-stat { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; }
+        .bulk-stat-chip { border-radius:20px; padding:3px 12px; font-size:10px; font-weight:800; }
+        .chip-total { background:#dbeafe; color:#1d4ed8; }
+        .chip-ok    { background:#dcfce7; color:#15803d; }
+        .chip-skip  { background:#fef9c3; color:#92400e; }
+        .chip-err   { background:#fee2e2; color:#b91c1c; }
+        .bulk-validate-badge { font-size:10px; padding:2px 8px; border-radius:8px; font-weight:700; }
+        .badge-valid   { background:#dcfce7; color:#15803d; }
+        .badge-invalid { background:#fee2e2; color:#b91c1c; }
+
+        /* Upload control panel */
+        #bulk-panel {
+            background: linear-gradient(135deg,#1e1b4b,#1e3a8a);
+            border-radius: 16px; padding: 14px 14px 12px;
+            display: none; flex-direction: column; gap: 10px;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.3);
+        }
+        #bulk-panel.active { display: flex; }
+        .panel-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+        .panel-counter { font-size:22px; font-weight:900; color:#fff; letter-spacing:-1px; line-height:1; }
+        .panel-counter span { font-size:11px; font-weight:600; color:#93c5fd; letter-spacing:0; }
+        .panel-pct { font-size:13px; font-weight:800; color:#a5b4fc; }
+        .panel-timer-box { display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+        .panel-elapsed { font-size:18px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; letter-spacing:-0.5px; }
+        .panel-eta { font-size:9px; color:#93c5fd; font-weight:700; white-space:nowrap; }
+        .panel-btns { display:flex; gap:8px; }
+        .pbtn { flex:1; border:none; border-radius:12px; padding:11px 8px; font-size:12px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:opacity 0.2s; }
+        .pbtn:active { opacity:0.75; }
+        .pbtn-stop  { background:#ef4444; color:#fff; }
+        .pbtn-retry { background:#f59e0b; color:#fff; display:none; }
+        .pbtn-clear { background:rgba(255,255,255,0.12); color:#e0e7ff; }
+        .panel-status { font-size:10px; color:#a5b4fc; text-align:center; min-height:14px; }
+        .wakelock-dot { width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block; margin-right:4px; animation: blink 2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        /* ══ Offline / Online Status Bar ══ */
+        #net-status-bar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            padding: 5px 12px; font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            transform: translateY(-100%); opacity: 0;
+        }
+        #net-status-bar.show { transform: translateY(0); opacity: 1; }
+        #net-status-bar.offline { background: #dc2626; color: #fff; }
+        #net-status-bar.online  { background: #059669; color: #fff; }
+
+        /* ══ Queue Badge ══ */
+        #queue-badge {
+            position: fixed; bottom: 16px; right: 16px; z-index: 9000;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            color: white; border-radius: 20px; padding: 8px 14px;
+            font-size: 11px; font-weight: 800; box-shadow: 0 4px 20px rgba(99,102,241,0.5);
+            cursor: pointer; display: none; align-items: center; gap: 6px;
+            animation: floatBadge 3s ease-in-out infinite;
+        }
+        #queue-badge.visible { display: flex; }
+        @keyframes floatBadge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+        /* ══ Sync Toast ══ */
+        #sync-toast {
+            position: fixed; bottom: 70px; right: 16px; z-index: 9001;
+            background: #059669; color: white; border-radius: 14px;
+            padding: 10px 16px; font-size: 11px; font-weight: 800;
+            box-shadow: 0 4px 20px rgba(5,150,105,0.4);
+            transform: translateX(200%); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            max-width: 220px;
+        }
+        #sync-toast.show { transform: translateX(0); }
+
+        @keyframes popIn {
+            0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+            60%  { transform: scale(1.2) rotate(5deg);  opacity: 1; }
+            100% { transform: scale(1)  rotate(0deg);   opacity: 1; }
+        }
+
+        /* ── Dashboard sub-tabs ── */
+        #home-section .glass-card { margin-bottom: 0; }
+        .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        #dash-chart::-webkit-scrollbar,
+        #dash-reports-list::-webkit-scrollbar,
+        #dash-users-list::-webkit-scrollbar { width:3px; }
+        #dash-chart::-webkit-scrollbar-thumb,
+        #dash-reports-list::-webkit-scrollbar-thumb,
+        #dash-users-list::-webkit-scrollbar-thumb { background:#c7d2fe; border-radius:4px; }
+
+        /* ── Report Cards — Professional ── */
+        .report-card {
+            background: #fff;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            border: 1px solid #f1f5f9;
+            transition: transform 0.2s;
+        }
+        .report-card:active { transform: scale(0.98); }
+        .report-card-header {
+            padding: 12px 14px 10px;
+            border-bottom: 1px solid #f8fafc;
+        }
+        .report-card-body { padding: 10px 14px 6px; }
+        .report-card-footer {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            padding: 10px 14px 12px;
+        }
+        .btn-edit-report {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
+            color: white; border: none; border-radius: 12px;
+            padding: 11px 16px; font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            cursor: pointer; box-shadow: 0 3px 10px rgba(99,102,241,0.35);
+            transition: all 0.2s; width: 100%;
+        }
+        .btn-edit-report:active { transform: scale(0.97); opacity: 0.9; }
+        .btn-seen-report {
+            background: #f1f5f9; color: #64748b;
+            border: none; border-radius: 12px;
+            padding: 11px 14px; font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            cursor: pointer; white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-seen-report:active { background: #e2e8f0; }
+        .issue-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #fef2f2; color: #dc2626;
+            border: 1px solid #fecaca; border-radius: 8px;
+            padding: 3px 8px; font-size: 10px; font-weight: 800;
+        }
+        .subject-pill {
+            display: inline-flex; align-items: center;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 10px; font-weight: 800;
+            background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+            color: #5b21b6;
+        }
+        .topic-pill {
+            display: inline-flex; align-items: center;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 10px; font-weight: 800;
+            background: #f0fdf4; color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+        .report-phone { font-size: 10px; color: #94a3b8; font-weight: 700; }
+        .report-question { font-size: 12px; font-weight: 700; color: #1e293b; line-height: 1.5; }
+        .report-time { font-size: 9px; color: #cbd5e1; }
+        .report-card-slide-out { animation: slideOut 0.3s ease forwards; }
+        @keyframes slideOut { to { opacity:0; transform: translateX(110%); max-height:0; padding:0; margin:0; overflow:hidden; } }
+
+        /* ── Skeleton loader ── */
+        .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; border-radius:10px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        /* ── User cards ── */
+        .user-card { background:#fff; border-radius:18px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,0.06); border:1px solid #f1f5f9; }
+        #dash-users-list { max-height:70vh; overflow-y:auto; }
+    
+    /* ══ BOTTOM NAV ══ */
+    :root { --nav-h: 68px; }
+    #bottom-nav { position:fixed;bottom:0;left:0;right:0;z-index:900;background:white;height:var(--nav-h);display:flex;align-items:stretch;border-top:1px solid #e8edf5;box-shadow:0 -8px 32px rgba(0,0,0,0.08);padding-bottom:env(safe-area-inset-bottom,0px); }
+    .nav-item { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:#94a3b8;position:relative;padding-bottom:2px; }
+    .nav-item.active { color:#3b82f6; }
+    .nav-item.active::before { content:'';position:absolute;top:0;left:20%;right:20%;height:3px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,#3b82f6,#6366f1); }
+    .nav-icon-txt { font-size:20px;line-height:1; }
+    .nav-label-txt { font-size:9px;font-weight:800;letter-spacing:0.3px; }
+    .nav-notif { position:absolute;top:6px;right:calc(50% - 18px);min-width:14px;height:14px;border-radius:7px;background:#ef4444;color:white;font-size:8px;font-weight:900;display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid white; }
+    .nav-notif.show { display:flex; }
+    /* ══ PAGE WRAP ══ */
+    .page-section { display:none; }
+    .page-section.active { display:block; }
+    /* ══ SIGNUP CARDS ══ */
+    .signup-card { background:white;border-radius:18px;border:1.5px solid #ddd6fe;box-shadow:0 2px 12px rgba(124,58,237,0.08);overflow:hidden;margin-bottom:8px; }
+    .signup-card-header { background:linear-gradient(135deg,#f5f3ff,#ede9fe);padding:12px 14px;display:flex;align-items:center;gap:10px; }
+    .signup-avatar { width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:18px;color:white;font-weight:900;flex-shrink:0; }
+    .signup-card-footer { display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 12px; }
+    .signup-new-dot { width:8px;height:8px;border-radius:50%;background:#7c3aed;display:inline-block;margin-right:5px;animation:pulse-dot 1.5s infinite; }
+    @keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.6}}
+    @keyframes bell-ring{0%,100%{transform:rotate(0)}15%{transform:rotate(20deg)}30%{transform:rotate(-18deg)}45%{transform:rotate(15deg)}60%{transform:rotate(-10deg)}75%{transform:rotate(6deg)}}
+    .bell-ring { animation:bell-ring 0.6s ease; }
+    /* ══ ANALYTICS ══ */
+    .accuracy-bar{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+    .accuracy-label{font-size:11px;font-weight:700;color:#1e293b;width:80px;flex-shrink:0;}
+    .accuracy-track{flex:1;height:8px;background:#f1f5f9;border-radius:6px;overflow:hidden;}
+    .accuracy-fill{height:100%;border-radius:6px;}
+    .accuracy-count{font-size:11px;font-weight:900;color:#64748b;width:28px;text-align:right;}
+    .heatmap-cell{height:32px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;font-weight:800;}
+    /* ══ CONTENT MGMT ══ */
+    .content-q-card{background:#f8faff;border:1.5px solid #e8edf5;border-radius:14px;padding:12px 13px;margin-bottom:8px;}
+    /* ══ HERO ══ */
+    .admin-hero{background:linear-gradient(135deg,#1e1b4b,#312e81,#4338ca);border-radius:0 0 24px 24px;padding:14px 16px 16px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<!-- Net Status Bar -->
+<div id="net-status-bar"><i class="fas fa-wifi-slash"></i><span id="net-status-text">অফলাইন</span></div>
+<div id="queue-badge" onclick="forceSyncNow()" style="position:fixed;bottom:calc(68px + 10px);right:16px;z-index:900;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border-radius:20px;padding:8px 14px;font-size:11px;font-weight:800;box-shadow:0 4px 20px rgba(99,102,241,0.5);cursor:pointer;display:none;align-items:center;gap:6px;animation:floatBadge 3s ease-in-out infinite;" class=""><i class="fas fa-cloud-upload-alt"></i><span id="queue-count-text">0 অপেক্ষায়</span></div>
+<div id="sync-toast" style="position:fixed;bottom:calc(68px+60px);right:16px;z-index:9001;background:#059669;color:white;border-radius:14px;padding:10px 16px;font-size:11px;font-weight:800;box-shadow:0 4px 20px rgba(5,150,105,0.4);transform:translateX(200%);transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);"><i class="fas fa-check-circle"></i> <span id="sync-toast-text">সিনক সম্পন্ন!</span></div>
+<div class="max-w-xl mx-auto" style="padding-top:10px;padding-bottom:78px;">
+
+<!-- Header -->
+<div style="background:linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95);border-radius:0 0 20px 20px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;position:sticky;top:0;z-index:80;box-shadow:0 4px 20px rgba(79,70,229,0.35);">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#6366f1,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:18px;">🎓</div>
+        <div><div style="color:white;font-weight:900;font-size:15px;">Smart Study</div><div style="color:rgba(255,255,255,0.5);font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Admin Panel</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;">
+        <div onclick="goToSignups()" id="signup-bell" style="width:35px;height:35px;border-radius:10px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;cursor:pointer;position:relative;">
+            <i class="fas fa-bell"></i>
+            <div id="signup-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#ef4444;color:white;font-size:9px;font-weight:900;display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid #1e1b4b;"></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:4px 10px;text-align:center;">
+            <div style="font-size:8px;color:rgba(255,255,255,0.5);font-weight:700;text-transform:uppercase;">আজকে</div>
+            <div id="todayCount" style="font-size:13px;color:white;font-weight:900;line-height:1.2;">0</div>
+        </div>
+        <div onclick="toggleSearchBox()" style="width:35px;height:35px;border-radius:10px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;cursor:pointer;">
+            <i class="fas fa-search"></i>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:4px 8px;text-align:center;">
+            <div style="font-size:7px;color:rgba(255,255,255,0.5);font-weight:700;">Last ID</div>
+            <div id="lastAddedId" style="font-size:11px;font-weight:900;color:#fbbf24;">---</div>
+        </div>
+    </div>
+</div>
+<div style="padding:0 10px;">
+<!-- ══ ENTRY PAGE ══ -->
+    <div id="entry-section" class="page-section active">
+      <div class="max-w-xl mx-auto space-y-4">
+        <!-- Entry Sub-tabs -->
+        <div class="grid grid-cols-5 gap-1 bg-white p-1.5 rounded-2xl shadow-sm" style="position:sticky;top:4px;z-index:80;">
+            <div id="t-Quiz"  class="tab-btn active-tab" onclick="switchMode('Quiz')"  tabindex="-1" style="font-size:11px;">কুইজ</div>
+            <div id="t-Study" class="tab-btn"            onclick="switchMode('Study')" tabindex="-1" style="font-size:11px;">স্টাডি</div>
+            <div id="t-QBank" class="tab-btn"            onclick="switchMode('QBank')" tabindex="-1" style="font-size:11px;">QBank</div>
+            <div id="t-Bulk"  class="tab-btn"            onclick="switchMode('Bulk')"  tabindex="-1" style="font-size:11px;">বাল্ক</div>
+            <div id="t-search-toggle" class="tab-btn" onclick="toggleSearchBox()" tabindex="-1" style="font-size:11px;">🔍 Edit</div>
+        </div>
+        <!-- Draft Indicator -->
+        <div id="draft-indicator" style="display:none;padding:4px 4px 0 4px;"></div>
+
+        <!-- Audience Tags Row -->
+        <div id="audience-tags-row" class="flex flex-wrap gap-2 px-1 pt-1 pb-0">
+            <span class="label-text !mb-0 self-center" style="font-size:10px;">🏷️ Audience:</span>
+            <div id="aud-tags-box" class="flex flex-wrap gap-1 flex-1"></div>
+            <div style="display:flex;gap:5px;align-items:center;">
+                <input id="aud-tag-input" type="text" placeholder="Tag লিখুন..."
+                    style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:10px;padding:5px 10px;font-size:11px;font-weight:700;outline:none;width:110px;"
+                    onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();audAddTag();}">
+                <button onclick="audAddTag()" style="background:#4f46e5;color:white;border:none;border-radius:10px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;">+</button>
+            </div>
+        </div>
+        <!-- Quick tag buttons -->
+        <div id="aud-quick-tags" class="flex flex-wrap gap-1 px-1">
+            <span class="label-text !mb-0 self-center" style="font-size:9px;color:#94a3b8;">Quick:</span>
+            <button onclick="audQuickTag('SSC')"    class="text-[10px] px-2 py-0.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold">SSC</button>
+            <button onclick="audQuickTag('HSC')"    class="text-[10px] px-2 py-0.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-bold">HSC</button>
+            <button onclick="audQuickTag('BCS')"    class="text-[10px] px-2 py-0.5 rounded-lg border border-green-200 bg-green-50 text-green-700 font-bold">BCS</button>
+            <button onclick="audQuickTag('Medical')" class="text-[10px] px-2 py-0.5 rounded-lg border border-red-200 bg-red-50 text-red-700 font-bold">Medical</button>
+            <button onclick="audQuickTag('Bank')"   class="text-[10px] px-2 py-0.5 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 font-bold">Bank</button>
+            <button onclick="audQuickTag('Varsity')" class="text-[10px] px-2 py-0.5 rounded-lg border border-teal-200 bg-teal-50 text-teal-700 font-bold">Varsity</button>
+        </div>
+        <div class="glass-card p-5 space-y-4" id="main-entry-card">
+
+        <!-- Search / Edit -->
+        <div id="search-box-container" class="hidden-box">
+            <label class="label-text text-yellow-700">Edit Mode: Enter ID to Load Data</label>
+            <div class="search-area">
+                <div class="flex-1 relative">
+                    <i class="fas fa-fingerprint absolute left-3 top-3 text-yellow-600"></i>
+                    <input type="number" id="search_id" class="input-box !pl-10 !border-yellow-300" placeholder="আইডি নম্বর দিন">
+                </div>
+                <button id="fetchBtnMain" onclick="fetchDataById()" class="btn-fetch uppercase" tabindex="-1">Fetch</button>
+            </div>
+        </div>
+
+        <!-- Magic Toolbar -->
+        <div id="magic-inline-box" class="hidden-box">
+            <i class="fas fa-times-circle close-magic" onclick="closeMagic()" tabindex="-1"></i>
+            <div class="tools-row border-b pb-2">
+                <button type="button" onmousedown="event.preventDefault();formatText('bh')" class="btn-tool bg-orange-100 text-orange-800" tabindex="-1">B+HI</button>
+                <button type="button" onmousedown="event.preventDefault();formatText('b')"  class="btn-tool" tabindex="-1">B</button>
+                <button type="button" onmousedown="event.preventDefault();formatText('u')"  class="btn-tool" tabindex="-1"><u>U</u></button>
+                <button type="button" onmousedown="event.preventDefault();formatText('li')" class="btn-tool" tabindex="-1">LIST</button>
+                <button type="button" onmousedown="event.preventDefault();insertMath('normal')" class="btn-tool text-blue-600" tabindex="-1">$$</button>
+                <button type="button" onmousedown="event.preventDefault();insertMath('frac')"   class="btn-tool text-blue-600" tabindex="-1">FRAC</button>
+                <button type="button" onmousedown="event.preventDefault();insertMath('pow')"    class="btn-tool text-blue-600" tabindex="-1">x²</button>
+                <button type="button" onmousedown="event.preventDefault();insertTable()"        class="btn-tool bg-gray-800 text-white" tabindex="-1"><i class="fas fa-table"></i></button>
+                <button type="button" onclick="document.getElementById('imgInput').click()" class="btn-tool btn-img-upload flex flex-col items-center" tabindex="-1">
+                    <i class="fas fa-image"></i><span id="uploadStatus" class="text-[7px]">IMG</span>
+                </button>
+                <input type="file" id="imgInput" class="hidden" accept="image/*" onchange="uploadImage(this,'general')" tabindex="-1">
+            </div>
+            <div id="master-preview"><div>Live Preview...</div></div>
+        </div>
+
+        <!-- Common Header Fields -->
+        <div id="common-fields-container">
+            <div id="standard-header" class="grid grid-cols-12 gap-3 items-end">
+                <div class="col-span-5 input-group">
+    <label class="label-text">Subject</label>
+    <i class="fas fa-book input-icon" style="top:34px;"></i>
+    <select id="subject" class="input-box !pl-10" onchange="handleSubjectChange(this,'subject')">
+        <option value="">Loading...</option>
+    </select>
+</div>
+
+                <div class="col-span-5 input-group">
+                    <label class="label-text">Sub-Topic</label>
+                    <i class="fas fa-tag input-icon" style="top:34px;"></i>
+                    <input type="text" id="sub_topic" class="input-box" placeholder="সাব টপিক">
+                </div>
+                <div class="col-span-2 flex flex-col items-center">
+                    <label class="label-text">Lock</label>
+                    <input type="checkbox" id="lockFields" class="custom-lock" checked tabindex="-1">
+                </div>
+            </div>
+
+            <div id="qbank-header" class="hidden-box space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="input-group">
+    <label class="label-text">Subject</label>
+    <i class="fas fa-book-open input-icon" style="top:34px;"></i>
+    <select id="qb_subject" class="input-box !pl-10" onchange="handleSubjectChange(this,'qb_subject')">
+        <option value="">লোডিং...</option>
+    </select>
+</div>
+
+                    <div class="input-group">
+                        <label class="label-text">Topic</label>
+                        <i class="fas fa-layer-group input-icon" style="top:34px;"></i>
+                        <input type="text" id="topic" class="input-box" placeholder="টপিক">
+                    </div>
+                </div>
+                <div class="grid grid-cols-12 gap-3 items-end">
+                    <div class="col-span-5 input-group">
+                        <label class="label-text">Sub-Topic</label>
+                        <i class="fas fa-tags input-icon" style="top:34px;"></i>
+                        <input type="text" id="qb_sub_topic" class="input-box" placeholder="সাব টপিক">
+                    </div>
+                    <div class="col-span-5">
+                        <label class="label-text text-purple-600">Main Qpaper</label>
+                        <div onclick="document.getElementById('qPaperInput').click()" class="qpaper-btn-small" tabindex="-1">
+                            <i id="qp-icon" class="fas fa-file-image text-purple-500"></i>
+                            <span id="qPaperStatus" class="text-[10px] font-bold text-purple-700">UPLOAD</span>
+                        </div>
+                        <input type="file" id="qPaperInput" class="hidden" accept="image/*" onchange="uploadImage(this,'qpaper')" tabindex="-1">
+                    </div>
+                    <div class="col-span-2 flex flex-col items-center">
+                        <label class="label-text">Lock</label>
+                        <input type="checkbox" id="lockFieldsQB" class="custom-lock" checked tabindex="-1">
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="main_qpaper_url" value="">
+        </div>
+
+        <!-- Type Toggle -->
+        <div id="type-toggle-container" class="flex items-center gap-2 py-2">
+            <div id="type-mcq"     class="type-badge type-active" onclick="setQuestionType('MCQ')"     tabindex="-1">MCQ</div>
+            <div id="type-written" class="type-badge"             onclick="setQuestionType('Written')" tabindex="-1">WRITTEN</div>
+            <div class="flex items-center gap-1 ml-auto">
+                <label class="label-text !mb-0">Type Lock</label>
+                <input type="checkbox" id="lockType" class="custom-lock !w-5 !h-5" checked tabindex="-1">
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div id="main-form-area" class="space-y-4">
+            <div id="question-group" class="input-group">
+                <label class="label-text">প্রশ্নটি লিখুন</label>
+                <i class="fas fa-magic tool-toggle-btn" onclick="toggleMagicVisibility('question')" tabindex="-1"></i>
+                <i class="fas fa-question-circle input-icon"></i>
+                <textarea id="question" rows="2" class="input-box" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)"></textarea>
+            </div>
+
+            <div id="mcq-options" class="grid grid-cols-2 gap-2">
+                <input type="text" id="opt1" class="input-box !pl-4" placeholder="অপশন ১" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)">
+                <input type="text" id="opt2" class="input-box !pl-4" placeholder="অপশন ২" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)">
+                <input type="text" id="opt3" class="input-box !pl-4" placeholder="অপশন ৩" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)">
+                <input type="text" id="opt4" class="input-box !pl-4" placeholder="অপশন ৪" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)">
+            </div>
+
+            <div id="answer-section" class="input-group">
+                <label id="correct-label" class="label-text text-red-600 font-bold">সঠিক উত্তর</label>
+                <i id="ai-mcq-magic" class="fas fa-wand-magic-sparkles ai-magic-btn" title="AI Magic Options" onclick="runAiMagic('options')" tabindex="-1"></i>
+                <i class="fas fa-magic tool-toggle-btn" onclick="toggleMagicVisibility('correct')" tabindex="-1"></i>
+                <i class="fas fa-check-circle input-icon"></i>
+                <textarea id="correct" class="input-box" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)"></textarea>
+            </div>
+
+            <div id="exp-group" class="input-group">
+                <label id="desc-label" class="label-text">বিস্তারিত ব্যাখ্যা</label>
+                <i id="ai-exp-magic" class="fas fa-wand-magic-sparkles ai-magic-btn" title="AI Magic Explanation" onclick="runAiMagic('explanation')" tabindex="-1"></i>
+                <i class="fas fa-magic tool-toggle-btn" onclick="toggleMagicVisibility('explanation')" tabindex="-1"></i>
+                <textarea id="explanation" rows="3" class="input-box !pl-4" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)"></textarea>
+            </div>
+
+            <div id="tech-section" class="grid grid-cols-12 gap-3 items-end">
+                <div id="tech-container" class="col-span-10 hidden-box">
+                    <label class="label-text text-indigo-700">টেকনিক / নোট</label>
+                    <i class="fas fa-magic tool-toggle-btn" style="top:25px;" onclick="toggleMagicVisibility('technique')" tabindex="-1"></i>
+                    <input type="text" id="technique" class="input-box !pl-4" onfocus="handleInputFocus(this)" oninput="updatePreview(this.value)">
+                    <!-- Tech image upload -->
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+                        <button type="button" onclick="document.getElementById('techImgInput').click()"
+                            class="btn-tool btn-img-upload" style="font-size:10px;padding:4px 10px;border-radius:8px;" tabindex="-1">
+                            <i class="fas fa-image"></i> টেক ছবি
+                        </button>
+                        <span id="techImgStatus" style="font-size:10px;color:#059669;font-weight:700;"></span>
+                        <input type="file" id="techImgInput" class="hidden" accept="image/*" onchange="uploadImage(this,'technique')" tabindex="-1">
+                        <input type="hidden" id="techImgUrl" value="">
+                    </div>
+                    <img id="techImgPreview" src="" alt=""
+                        style="display:none;width:100%;border-radius:10px;margin-top:5px;max-height:120px;object-fit:cover;"
+                        onclick="document.getElementById('techImgInput').click()">
+                </div>
+                <div class="col-span-2 flex flex-col items-center">
+                    <label class="label-text">টেকনিক</label>
+                    <input type="checkbox" id="showTechnique" class="custom-lock" onchange="toggleTech(this.checked)" tabindex="-1">
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ BULK SECTION ══ -->
+        <div id="bulk-section" class="hidden-box space-y-3 bg-blue-50/60 p-4 rounded-2xl border-2 border-dashed border-blue-200">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-black text-blue-800 uppercase tracking-widest">⚡ বাল্ক প্রশ্ন আপলোড</p>
+                <span id="bulk-validate-badge" class="bulk-validate-badge"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="input-group">
+                    <label class="label-text text-blue-800">Target Sheet</label>
+                    <select id="bulk_target" class="input-box !pl-4" onchange="updateBulkSubjectList()">
+                        <option value="Quiz">Quiz</option>
+                        <option value="QBank">QBank</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label class="label-text text-blue-800">Question Type</label>
+                    <select id="bulk_qtype" class="input-box !pl-4" onchange="validateBulkData()">
+                        <option value="MCQ">MCQ</option>
+                        <option value="Written">Written</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="input-group">
+                    <label class="label-text text-blue-800">Subject (List)</label>
+                    <select id="bulk_subject_select" class="input-box !pl-4" onchange="handleBulkSubjectChange(this)">
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label class="label-text text-blue-800">Sub-Topic</label>
+                    <input type="text" id="bulk_sub_topic" class="input-box !pl-4" placeholder="এখানে লিখুন">
+                </div>
+            </div>
+
+            <!-- Format hint -->
+            <div class="bg-white rounded-xl p-3 border border-blue-100 text-[10px] text-slate-600 space-y-1">
+                <p class="font-black text-blue-700 text-[11px]">📋 ফরম্যাট (প্রতি লাইন = একটি প্রশ্ন):</p>
+                <p><span class="font-bold text-green-700">MCQ →</span> প্রশ্ন ; অপ১ ; অপ২ ; অপ৩ ; অপ৪ ; সঠিকউত্তর ; ব্যাখ্যা(optional)</p>
+                <p><span class="font-bold text-orange-700">Written →</span> প্রশ্ন ; উত্তর ; ব্যাখ্যা(optional)</p>
+
+            </div>
+
+            <div class="input-group">
+                <label class="label-text text-red-600">প্রশ্নগুলো লিখুন / পেস্ট করুন</label>
+                <textarea id="bulk_data" rows="9" class="input-box !pl-4 font-mono text-xs"
+                    placeholder="প্রশ্ন ; অপশন১ ; অপশন২ ; অপশন৩ ; অপশন৪ ; উত্তর"
+                    oninput="validateBulkData()"></textarea>
+            </div>
+
+            <!-- Live stats -->
+            <div id="bulk-stat-row" class="bulk-stat hidden-box">
+                <span id="bs-total" class="bulk-stat-chip chip-total">Total: 0</span>
+                <span id="bs-ok"    class="bulk-stat-chip chip-ok">Vaild: 0</span>
+                <span id="bs-skip"  class="bulk-stat-chip chip-skip">Skip: 0</span>
+                <span id="bs-err"   class="bulk-stat-chip chip-err">Wrong: 0</span>
+            </div>
+
+            <!-- Upload Control Panel -->
+            <div id="bulk-panel">
+                <div class="panel-top">
+                    <div>
+                        <div class="panel-counter"><span id="p-done">0</span>/<span id="p-total">0</span> <span>প্রশ্ন</span></div>
+                        <div class="panel-pct" id="p-pct">0%</div>
+                    </div>
+                    <div class="panel-timer-box">
+                        <div class="panel-elapsed" id="p-elapsed">0:00</div>
+                        <div class="panel-eta" id="p-eta">Waiting...</div>
+                    </div>
+                </div>
+                <div id="bulk-progress-text" class="hidden-box"></div>
+                <div class="bulk-progress-wrap" id="bulk-progress-wrap" style="display:block;">
+                    <div class="bulk-progress-bar" id="bulk-progress-bar"></div>
+                </div>
+
+                <!-- Complete Badge (100% সফল হলে দেখাবে) -->
+                <div id="bulk-complete-badge" style="display:none;" class="flex flex-col items-center gap-1 py-3">
+                    <div style="font-size:40px; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);">✅</div>
+                    <div style="color:#10b981; font-weight:900; font-size:15px;" id="bulk-complete-text">সম্পন্ন!</div>
+                    <div style="color:#a5b4fc; font-size:10px;" id="bulk-complete-sub"></div>
+                </div>
+
+                <!-- বাটন — চলার সময় -->
+                <div class="panel-btns" id="panel-btns-running">
+                    <button onclick="stopBulk()"    class="pbtn pbtn-stop"><i class="fas fa-stop-circle"></i> স্টপ</button>
+                    <button onclick="retryFailed()" class="pbtn pbtn-retry" id="bulkRetryBtn" style="display:none;"><i class="fas fa-redo"></i> রিট্রাই</button>
+                    <button onclick="clearBulkPanel()" class="pbtn pbtn-clear"><i class="fas fa-times"></i> বন্ধ</button>
+                </div>
+
+                <!-- বাটন — fail হলে (retry only) -->
+                <div class="panel-btns" id="panel-btns-failed" style="display:none;">
+                    <button onclick="retryFailed()" class="pbtn pbtn-retry" id="bulkRetryBtn2" style="flex:2;"><i class="fas fa-redo"></i> ব্যর্থগুলো আবার পাঠাও</button>
+                    <button onclick="clearBulkPanel()" class="pbtn pbtn-clear"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="panel-status" id="p-status">
+                    <span class="wakelock-dot" id="wakelock-dot" style="display:none;"></span>
+                    <span id="p-status-text">Starting...</span>
+                </div>
+            </div>
+
+            <!-- Log -->
+            <div class="bulk-log" id="bulk-log"></div>
+
+            <div class="flex gap-3">
+                <button onclick="processBulkData()" id="bulkSendBtn"
+                    class="flex-1 btn-submit !mt-0 !rounded-xl flex items-center justify-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Submit Bulk Question
+                </button>
+                <button onclick="clearBulkUI()" class="bg-slate-200 text-slate-700 px-4 rounded-xl font-bold text-sm" tabindex="-1">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <!-- ══ END BULK ══ -->
+
+        <button id="submitBtn" onclick="sendData()" class="btn-submit uppercase" tabindex="-1">Submit Data</button>
+    </div>
+</div>
+      </div>
+    </div>
+
+    <!-- ══ TECHNIQUE PAGE ══ -->
+    <div id="technique-section" class="page-section">
+      <div class="max-w-xl mx-auto space-y-4">
+        <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:22px;padding:18px;">
+            <div style="font-size:14px;font-weight:900;color:white;margin-bottom:14px;">🧠 নতুন টেকনিক</div>
+            <label style="color:rgba(255,255,255,0.6);font-size:10px;font-weight:800;letter-spacing:1px;margin-bottom:5px;display:block;">TECHNIQUE</label>
+            <textarea id="tc-text" rows="3" placeholder="টেকনিক লিখো..." style="width:100%;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.25);border-radius:14px;padding:11px 14px;color:white;font-weight:700;font-size:13px;font-family:inherit;outline:none;resize:none;margin-bottom:14px;"></textarea>
+            <!-- Image Upload for Technique -->
+            <div style="margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <button type="button" onclick="document.getElementById('tc-img-input').click()"
+                        style="background:rgba(255,255,255,0.15);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:12px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
+                        <i class="fas fa-image"></i> ছবি যোগ করো
+                    </button>
+                    <span id="tc-img-status" style="font-size:11px;color:rgba(255,255,255,0.7);font-weight:700;"></span>
+                    <input type="file" id="tc-img-input" class="hidden" accept="image/*" onchange="tcUploadImage(this)">
+                    <input type="hidden" id="tc-img-preview-url" value="">
+                </div>
+                <img id="tc-img-preview" src="" alt="preview"
+                    style="display:none;width:100%;border-radius:12px;max-height:150px;object-fit:cover;border:2px solid rgba(255,255,255,0.2);"
+                    onclick="document.getElementById('tc-img-input').click()">
+            </div>
+            <label style="color:rgba(255,255,255,0.6);font-size:10px;font-weight:800;letter-spacing:1px;margin-bottom:6px;display:block;">TAGS</label>
+            <div id="tc-tags-box" style="display:flex;flex-wrap:wrap;gap:6px;min-height:36px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.18);border-radius:12px;padding:7px 10px;margin-bottom:8px;"></div>
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <input id="tc-tag-input" type="text" placeholder="Tag + Enter..."
+                    style="flex:1;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:12px;padding:9px 13px;color:white;font-weight:700;font-size:12px;outline:none;font-family:inherit;"
+                    onkeydown="if(event.key==='Enter'||event.key===','){event.preventDefault();tcAddTag();}">
+                <button onclick="tcAddTag()" style="background:white;color:#312e81;border:none;border-radius:12px;padding:9px 14px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit;">+ Add</button>
+            </div>
+            <input id="tc-edit-id" type="hidden" value="">
+            <div style="display:flex;gap:8px;">
+                <button onclick="tcClear()" style="background:rgba(255,255,255,0.12);color:white;border:none;border-radius:12px;padding:11px 14px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">🔄 Clear</button>
+                <button onclick="tcSave()" style="flex:1;background:white;color:#1e1b4b;border:none;border-radius:12px;padding:11px;font-weight:900;font-size:13px;cursor:pointer;font-family:inherit;">💾 Save</button>
+            </div>
+        </div>
+        <div style="background:white;border-radius:20px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);border:1px solid #f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-size:13px;font-weight:900;color:#1e293b;">🗂️ Gallery</div>
+                <button onclick="tcLoadAll()" style="background:#f1f5f9;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">🔄 Reload</button>
+            </div>
+            <input id="tc-gallery-search" placeholder="Search..."
+                style="width:100%;background:#f8faff;border:1.5px solid #e2e8f0;border-radius:12px;padding:9px 13px;font-weight:700;font-size:12px;outline:none;margin-bottom:10px;font-family:inherit;"
+                oninput="tcFilterGallery()">
+            <div id="tc-gallery" style="display:flex;flex-direction:column;gap:8px;">
+                <p style="font-size:11px;color:#94a3b8;text-align:center;padding:20px;">লোড হচ্ছে...</p>
+            </div>
+        </div>
+      </div>
+    </div>
+</div>
+
+<!-- Bottom Nav -->
+<div id="bottom-nav">
+    <div class="nav-item active" id="nav-entry" onclick="switchPage('entry')">
+        <div class="nav-icon-txt">✏️</div><div class="nav-label-txt">Entry</div>
+    </div>
+    <div class="nav-item" id="nav-technique" onclick="switchPage('technique')">
+        <div class="nav-icon-txt">🧠</div><div class="nav-label-txt">Technique</div>
+    </div>
+</div>
+<script>
+
+const IMGBB_API_KEY = "3f23d9fd6bdfdb694285773f40569906";
+const SCRIPT_URL    = "https://script.google.com/macros/s/AKfycbyjF7iFX0H_rFuJgMJYo70DC7KRX1lBXU7m7NoZCwf6VTJfRm6Iyw6hOcN2q_UKbxxgQg/exec";
+
+let activeInput = null, currentMode = 'Quiz', currentType = 'MCQ', isMagicActive = false;
+let cachedSubjects = { Quiz: [], Study: [], QBank: [] };
+
+/* ─── Audience Tags ─── */
+let audCurrentTags = [];
+
+function audAddTag() {
+    const inp = document.getElementById('aud-tag-input');
+    const val = inp.value.trim().replace(/,/g,'');
+    if (!val) return;
+    if (!audCurrentTags.includes(val)) { audCurrentTags.push(val); audRenderTags(); }
+    inp.value = '';
+    inp.focus();
+}
+
+function audQuickTag(tag) {
+    if (!audCurrentTags.includes(tag)) { audCurrentTags.push(tag); audRenderTags(); }
+    else { audCurrentTags = audCurrentTags.filter(t => t !== tag); audRenderTags(); }
+}
+
+function audRemoveTag(tag) {
+    audCurrentTags = audCurrentTags.filter(t => t !== tag);
+    audRenderTags();
+}
+
+function audRenderTags() {
+    const box = document.getElementById('aud-tags-box');
+    if (!box) return;
+    box.innerHTML = audCurrentTags.map(t =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;background:#4f46e5;color:white;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;">
+            ${t}<span onclick="audRemoveTag('${t}')" style="cursor:pointer;opacity:0.8;font-size:11px;">✕</span>
+        </span>`
+    ).join('');
+    // Update quick-tag button styles
+    ['SSC','HSC','BCS','Medical','Bank','Varsity'].forEach(tag => {
+        const btns = document.querySelectorAll(`#aud-quick-tags button`);
+        btns.forEach(btn => {
+            if (btn.innerText === tag) {
+                btn.style.opacity = audCurrentTags.includes(tag) ? '1' : '0.5';
+                btn.style.fontWeight = audCurrentTags.includes(tag) ? '900' : '700';
+            }
+        });
+    });
+}
+
+function audResetTags() {
+    audCurrentTags = [];
+    audRenderTags();
+}
+
+/* ─── Keyboard Shortcuts (restored) ─── */
+window.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault(); sendData(); return;
+    }
+    if (!activeInput) return;
+    if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+            case 'b': e.preventDefault(); formatText('b');    break;
+            case 'u': e.preventDefault(); formatText('u');    break;
+            case 'h': e.preventDefault(); formatText('bh');   break;
+            case 'l': e.preventDefault(); formatText('li');   break;
+            case 'f': e.preventDefault(); insertMath('frac'); break;
+            case '2': e.preventDefault(); insertMath('pow');  break;
+            case 't': e.preventDefault(); insertTable();      break;
+        }
+    }
+}, true);
+
+/* ─── AI Magic ─── */
+async function runAiMagic(type) {
+    const question   = document.getElementById('question').value;
+    const correctAns = document.getElementById('correct').value;
+    const icon = type === 'options' ? document.getElementById('ai-mcq-magic') : document.getElementById('ai-exp-magic');
+    if (!question) return Swal.fire('Error','আগে প্রশ্ন লিখুন','warning');
+    if (type === 'options' && !correctAns) return Swal.fire('Error','আগে সঠিক উত্তর লিখুন','warning');
+    icon.classList.add('ai-pulse');
+    const prompt = type === 'options'
+        ? `Generate 4 realistic MCQ options in Bengali or English for: "${question}". Correct: "${correctAns}". Format: o1;o2;o3;o4`
+        : `Short point-based Bengali explanation for: "${question}" (Ans: "${correctAns}"). Max 3 points, use <li>.`;
+    try {
+        const res  = await fetch(`${SCRIPT_URL}?action=getAI&prompt=${encodeURIComponent(prompt)}`);
+        const data = await res.json();
+        if (data.candidates?.[0]?.content) {
+            const aiText = data.candidates[0].content.parts[0].text.trim();
+            if (type === 'options') {
+                const opts = aiText.split(';');
+                if (opts.length >= 4) ['opt1','opt2','opt3','opt4'].forEach((id,i) => document.getElementById(id).value = opts[i].trim());
+            } else {
+                document.getElementById('explanation').value = aiText; updatePreview(aiText);
+            }
+        }
+    } catch(e) { Swal.fire('AI Error','কানেকশনে সমস্যা।','error'); }
+    finally { icon.classList.remove('ai-pulse'); }
+}
+
+/* ─── Search ─── */
+function toggleSearchBox() { document.getElementById('search-box-container').classList.toggle('hidden-box'); closeMagic(); }
+async function fetchDataById() {
+    const id = document.getElementById('search_id').value;
+    if (!id) return Swal.fire('Error', 'আইডি নম্বর দিন', 'error');
+    
+    const fetchBtn = document.getElementById('fetchBtnMain');
+    fetchBtn.classList.add('btn-loading'); 
+    closeMagic();
+
+    try {
+        const response = await fetch(`${SCRIPT_URL}?id=${id}&tab=${currentMode}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const item = data.data;
+
+            // --- ১. টাইপ অটো-সিলেকশন লজিক (আপনার আগের ভার্সন থেকে নেওয়া) ---
+            let sheetType = item['Question Type'] || item.qType || item.type || "";
+            let finalType = (sheetType.toString().trim().toUpperCase() === 'WRITTEN') ? 'Written' : 'MCQ';
+
+            // --- ২. সাবজেক্ট ড্রপডাউন সেট করার লজিক ---
+            const subVal = item.subject || "";
+            const selectId = currentMode === 'QBank' ? 'qb_subject' : 'subject';
+            const selectEl = document.getElementById(selectId);
+
+            if (selectEl && subVal !== "") {
+                // চেক করা: সাবজেক্টটি কি ড্রপডাউনে আছে? না থাকলে অ্যাড করা।
+                const exists = [...selectEl.options].some(opt => opt.value === subVal);
+                if (!exists) {
+                    const newOpt = new Option(subVal, subVal);
+                    selectEl.add(newOpt);
+                }
+                selectEl.value = subVal;
+            }
+
+            // --- ৩. মোড অনুযায়ী অন্যান্য ফিল্ড সেট করা ---
+            if (currentMode === 'QBank') {
+                document.getElementById('topic').value = item.topic || "";
+                document.getElementById('qb_sub_topic').value = item.sub_topic || "";
+                document.getElementById('main_qpaper_url').value = item.mainQpaper || "";
+                if (item.mainQpaper) {
+                    document.getElementById('qp-icon').className = "fas fa-check-circle text-green-500";
+                    document.getElementById('qPaperStatus').innerText = "LINKED!";
+                }
+            } else {
+                document.getElementById('sub_topic').value = item.sub_topic || "";
+            }
+
+            // --- ৪. সাধারণ কন্টেন্ট ফিল্ড সেট করা ---
+            document.getElementById('question').value = item.question || "";
+            document.getElementById('opt1').value = item.opt1 || item.option1 || "";
+            document.getElementById('opt2').value = item.opt2 || item.option2 || "";
+            document.getElementById('opt3').value = item.opt3 || item.option3 || "";
+            document.getElementById('opt4').value = item.opt4 || item.option4 || "";
+            document.getElementById('correct').value = item.correct || "";
+            document.getElementById('explanation').value = item.explanation || "";
+            
+            // টেকনিক অংশ
+            if (item.technique) {
+                document.getElementById('showTechnique').checked = true;
+                toggleTech(true);
+                document.getElementById('technique').value = item.technique;
+            } else {
+                document.getElementById('showTechnique').checked = false;
+                toggleTech(false);
+            }
+            
+            // Audience Tags load করো
+            audCurrentTags = [];
+            if (item.audienceTags || item.AudienceTags) {
+                const rawTags = (item.audienceTags || item.AudienceTags).toString().trim();
+                if (rawTags) audCurrentTags = rawTags.split(',').map(t=>t.trim()).filter(Boolean);
+            }
+            audRenderTags();
+
+            // টাইপ সেট করা (MCQ/Written)
+            setQuestionType(finalType);
+
+            // আইডি এবং UI আপডেট
+            document.getElementById('lastAddedId').innerText = id;
+            localStorage.setItem('last_added_id', id); 
+
+            const sBtn = document.getElementById('submitBtn');
+            sBtn.innerText = "Update (ID: " + id + ")";
+            sBtn.style.background = "linear-gradient(90deg, #059669, #10b981)";
+
+            // সাকসেস মেসেজ (ঐচ্ছিক)
+            Swal.fire({ icon: 'success', title: 'Data Loaded', toast: true, position: 'top-end', timer: 1000, showConfirmButton: false });
+
+        } else {
+            Swal.fire('Not Found', 'এই আইডিতে কোনো তথ্য পাওয়া যায়নি', 'warning');
+        }
+    } catch (e) { 
+        console.error(e);
+        Swal.fire('Error', 'ডাটা ফেচ করতে সমস্যা হয়েছে', 'error'); 
+    } finally { 
+        fetchBtn.classList.remove('btn-loading'); 
+    }
+}
+
+
+/* ─── Question Type ─── */
+function setQuestionType(type) {
+    currentType = type;
+    if (currentMode === 'Study') { document.getElementById('mcq-options').style.display = 'none'; return; }
+    document.getElementById('type-mcq').classList.toggle('type-active',    type === 'MCQ');
+    document.getElementById('type-written').classList.toggle('type-active', type === 'Written');
+    document.getElementById('mcq-options').style.display = type === 'MCQ' ? 'grid' : 'none';
+    document.getElementById('correct-label').innerText   = type === 'MCQ' ? 'সঠিক উত্তর' : 'লিখিত উত্তর (বিস্তারিত)';
+    document.getElementById('ai-mcq-magic').classList.toggle('hidden-box', type !== 'MCQ');
+}
+
+/* ─── Preview + Table builder (restored) ─── */
+function updatePreview(text) {
+    const preview = document.getElementById('master-preview');
+    preview.innerHTML = `<div>${processText(text) || 'Live Preview...'}</div>`;
+    if (window.MathJax) MathJax.typesetPromise([preview]).catch(()=>{});
+}
+
+function processText(text) {
+    if (!text) return '';
+    let processed = text
+        .replace(/(https?:\/\/i\.ibb\.co\/[^\s\n<]+)/g, '<img src="$1" class="preview-img">')
+        .replace(/\n/g, '<br>');
+    const lines = processed.split('<br>');
+    let html = '', tableLines = [];
+    lines.forEach(line => {
+        if (line.includes(';')) { tableLines.push(line); }
+        else {
+            if (tableLines.length > 0) { html += buildTable(tableLines); tableLines = []; }
+            html += line + '<br>';
+        }
+    });
+    if (tableLines.length > 0) html += buildTable(tableLines);
+    return html;
+}
+
+function buildTable(lines) {
+    let h = '<div class="overflow-x-auto my-1"><table>';
+    lines.forEach(l => { const cols = l.split(';'); h += '<tr>' + cols.map(c=>`<td>${c.trim()}</td>`).join('') + '</tr>'; });
+    return h + '</table></div>';
+}
+
+/* ─── Mode Switch ─── */
+function switchPage(page) {
+    ['entry','technique'].forEach(p => {
+        const el = document.getElementById(p + '-section');
+        if (el) el.classList.toggle('active', p === page);
+        const nav = document.getElementById('nav-' + p);
+        if (nav) nav.classList.toggle('active', p === page);
+    });
+    if (page === 'technique') { tcLoadAll(); }
+}
+
+function switchMode(tab) {
+    // Mode switch এর আগে current draft save করো
+    if (currentMode && currentMode !== 'Bulk') saveDraft();
+    currentMode = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+    document.getElementById('t-' + tab).classList.add('active-tab');
+
+    const isQB   = tab === 'QBank', isBulk = tab === 'Bulk', isS = tab === 'Study';
+
+    document.getElementById('main-entry-card').classList.remove('hidden-box');
+
+    document.getElementById('standard-header').classList.toggle('hidden-box',         isQB || isBulk);
+    document.getElementById('qbank-header').classList.toggle('hidden-box',            !isQB);
+    document.getElementById('common-fields-container').classList.toggle('hidden-box',  isBulk);
+    document.getElementById('main-form-area').classList.toggle('hidden-box',           isBulk);
+    document.getElementById('bulk-section').classList.toggle('hidden-box',             !isBulk);
+    document.getElementById('type-toggle-container').style.display = (isS || isBulk) ? 'none' : 'flex';
+    document.getElementById('question-group').style.display        = isS ? 'none' : (isBulk ? 'none' : 'block');
+    document.getElementById('answer-section').style.display        = isS ? 'none' : (isBulk ? 'none' : 'block');
+    document.getElementById('exp-group').classList.toggle('hidden-box',   isBulk);
+    document.getElementById('tech-section').classList.toggle('hidden-box', isBulk);
+    document.getElementById('submitBtn').style.display             = isBulk ? 'none' : 'block';
+    document.getElementById('desc-label').innerText = isS ? 'বিস্তারিত আলোচনা' : 'বিস্তারিত ব্যাখ্যা';
+
+    if (!isBulk) setQuestionType(currentType);
+    // এই mode এর draft আছে কিনা indicator দেখাও
+    if (!isBulk) {
+        const d = localStorage.getItem('draft_' + tab);
+        const indicator = document.getElementById('draft-indicator');
+        if (indicator) {
+            if (d) {
+                try {
+                    const parsed = JSON.parse(d);
+                    const preview = (parsed.question || parsed.explanation || '').substring(0,30);
+                    indicator.innerHTML = `<span onclick="offerRestoreCurrentMode()" style="cursor:pointer;background:#fef3c7;border:1.5px solid #fbbf24;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:#92400e;">📝 Draft আছে — restore করুন</span>`;
+                    indicator.style.display = 'block';
+                } catch(_) { indicator.style.display = 'none'; }
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+    }
+    updateSubjectDatalist();
+    if (isBulk) updateBulkSubjectList();
+}
+
+/* ─── Image Upload ─── */
+async function uploadImage(input, type) {
+    if (!input.files?.[0]) return;
+    const statusMap = { qpaper:'qPaperStatus', technique:'techImgStatus', general:'uploadStatus' };
+    const statusSpan = document.getElementById(statusMap[type] || 'uploadStatus');
+    if (statusSpan) statusSpan.innerText = '⏫...';
+    const fd = new FormData(); fd.append('image', input.files[0]);
+    try {
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method:'POST', body:fd });
+        const r   = await res.json();
+        if (r.success) {
+            if (type === 'qpaper') {
+                document.getElementById('main_qpaper_url').value = r.data.url;
+                if (statusSpan) statusSpan.innerText = '✅';
+                document.getElementById('qp-icon').className = 'fas fa-check-circle text-green-500';
+            } else if (type === 'technique') {
+                document.getElementById('techImgUrl').value = r.data.url;
+                if (statusSpan) statusSpan.innerText = '✅';
+                const prev = document.getElementById('techImgPreview');
+                if (prev) { prev.src = r.data.url; prev.style.display = 'block'; }
+                // technique field এ URL append করো
+                const techField = document.getElementById('technique');
+                if (techField && !techField.value.includes(r.data.url)) {
+                    techField.value = (techField.value ? techField.value + ' ' : '') + r.data.url;
+                }
+            } else if (activeInput) {
+                activeInput.value += r.data.url; updatePreview(activeInput.value);
+                if (statusSpan) statusSpan.innerText = '✅';
+            }
+        } else { if (statusSpan) statusSpan.innerText = '❌'; }
+    } catch(e) { if (statusSpan) statusSpan.innerText = '❌'; }
+}
+
+// Technique PAGE এর image upload
+async function tcUploadImage(input) {
+    if (!input.files?.[0]) return;
+    const status = document.getElementById('tc-img-status');
+    if (status) status.innerText = '⏫...';
+    const fd = new FormData(); fd.append('image', input.files[0]);
+    try {
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method:'POST', body:fd });
+        const r = await res.json();
+        if (r.success) {
+            document.getElementById('tc-img-preview-url').value = r.data.url;
+            const prev = document.getElementById('tc-img-preview');
+            if (prev) { prev.src = r.data.url; prev.style.display = 'block'; }
+            if (status) status.innerText = '✅ Ready';
+        } else { if (status) status.innerText = '❌ Failed'; }
+    } catch(e) { if (status) status.innerText = '❌ Error'; }
+}
+
+/* ─── Magic Toolbar ─── */
+function handleInputFocus(el) { activeInput = el; if (isMagicActive) attachTools(el); }
+function toggleMagicVisibility(id) {
+    const tools = document.getElementById('magic-inline-box'), target = document.getElementById(id);
+    if (isMagicActive && activeInput?.id === id) { closeMagic(); }
+    else { isMagicActive = true; activeInput = target; tools.classList.remove('hidden-box'); attachTools(target); target.focus(); }
+}
+function closeMagic() { isMagicActive = false; document.getElementById('magic-inline-box').classList.add('hidden-box'); }
+function attachTools(el) { el.closest('.input-group').prepend(document.getElementById('magic-inline-box')); updatePreview(el.value); }
+
+/* ─── Format / Math / Table (restored) ─── */
+function formatText(type) {
+    if (!activeInput) return;
+    const s = activeInput.selectionStart, e = activeInput.selectionEnd;
+    const val = activeInput.value, sel = val.substring(s, e);
+    const tag = { bh:`<mark><b>${sel}</b></mark>`, b:`<b>${sel}</b>`, u:`<u>${sel}</u>`, li:`<li>${sel}</li>` }[type] || sel;
+    activeInput.value = val.substring(0,s) + tag + val.substring(e);
+    activeInput.selectionStart = activeInput.selectionEnd = s + tag.length;
+    updatePreview(activeInput.value);
+}
+function insertMath(type) {
+    if (!activeInput) return;
+    const s = activeInput.selectionStart, e = activeInput.selectionEnd, val = activeInput.value;
+    const m = type === 'frac' ? '$\\frac{1}{x}$' : (type === 'pow' ? '$x^2$' : '$$ ');
+    activeInput.value = val.substring(0,s) + m + val.substring(e);
+    updatePreview(activeInput.value);
+}
+function insertTable() {
+    if (!activeInput) return;
+    activeInput.value += '\nশিরোনাম ; শিরোনাম\nতথ্য ; তথ্য';
+    updatePreview(activeInput.value);
+}
+function toggleTech(show) { document.getElementById('tech-container').classList.toggle('hidden-box', !show); }
+
+/* ════════════════════════════════════════════
+   DASHBOARD / HOME — Full Version
+════════════════════════════════════════════ */
+let dashData    = null;
+let usersData   = [];
+let filteredUsers = [];
+let signupData  = [], signupPollTimer = null;
+let analyticsLoaded = false;
+let tcAllTechniques = [], tcCurrentTags = [];
+let dashLoaded  = false;
+let currentChartTab  = 'quiz';
+let currentDashTab   = 'overview';
+let currentSortKey   = 'xp';
+
+/* ── Sub-tab switch ── */
+function switchDashTab(tab) {
+    currentDashTab = tab;
+    ['overview','users','reports','notify','signups','analytics','content'].forEach(t => {
+        const p = document.getElementById('dash-' + t + '-panel');
+        const d = document.getElementById('dt-' + t);
+        if (p) p.classList.toggle('hidden-box', t !== tab);
+        if (d) { d.classList.toggle('active-tab', t === tab); }
+    });
+    const labels = { overview:'Admin Dashboard', users:'Students', reports:'Reports', notify:'Notifications', signups:'New Signups', analytics:'Analytics', content:'Content' };
+    const lbl = document.getElementById('dash-tab-label');
+    if (lbl) lbl.innerText = labels[tab] || '';
+    if (tab === 'users'     && !usersData.length) loadUsers();
+    if (tab === 'reports'   && dashData)          renderReports(dashData.reports || []);
+    if (tab === 'signups')                        loadSignups();
+    if (tab === 'analytics')                      loadAnalytics();
+    if (tab === 'content')                        initContentPanel();
+}
+function goToSignups() { switchDashTab('signups'); }
+
+/* ── Refresh ── */
+function refreshDashboard() {
+    dashLoaded = false; usersData = [];
+    if (currentDashTab === 'overview') loadDashboard(true);
+    else if (currentDashTab === 'users') loadUsers(true);
+    else if (currentDashTab === 'reports') loadDashboard(true);
+}
+
+/* ── Overview load ── */
+async function loadDashboard(forceRefresh = false) {
+    if (dashLoaded && !forceRefresh) { renderDashboard(); return; }
+    const icon = document.getElementById('dash-refresh-icon');
+    icon.classList.add('fa-spin');
+
+    // Skeleton দেখাও
+    document.getElementById('dash-loader').classList.remove('hidden-box');
+    document.getElementById('ds-quiz-total').innerHTML  = '<span class="skeleton" style="display:inline-block;width:40px;height:24px;"></span>';
+    document.getElementById('ds-qbank-total').innerHTML = '<span class="skeleton" style="display:inline-block;width:40px;height:24px;"></span>';
+    document.getElementById('ds-today').innerHTML       = '<span class="skeleton" style="display:inline-block;width:30px;height:24px;"></span>';
+
+    try {
+        const res = await fetch(`${SCRIPT_URL}?action=getDashboard`);
+        dashData  = await res.json();
+        dashLoaded = true;
+        renderDashboard();
+        if (currentDashTab === 'reports') renderReports(dashData.reports || []);
+    } catch(e) {
+        document.getElementById('dash-loader').innerHTML =
+            `<div class="text-center py-6">
+                <i class="fas fa-wifi text-slate-300 text-3xl"></i>
+                <p class="text-xs text-slate-400 mt-2 font-bold">লোড ব্যর্থ — রিফ্রেশ করুন</p>
+             </div>`;
+    } finally {
+        icon.classList.remove('fa-spin');
+        document.getElementById('dash-loader').classList.add('hidden-box');
+    }
+}
+
+function renderDashboard() {
+    if (!dashData) return;
+    const quizSubs  = Object.keys(dashData.quiz  || {});
+    const qbankSubs = Object.keys(dashData.qbank || {});
+    const quizTotal  = quizSubs.reduce((s,k)  => s + (dashData.quiz[k].total||0),  0);
+    const qbankTotal = qbankSubs.reduce((s,k) => s + (dashData.qbank[k].total||0), 0);
+    document.getElementById('ds-quiz-total').innerText  = quizTotal.toLocaleString();
+    document.getElementById('ds-quiz-sub').innerText    = `${quizSubs.length} বিষয়`;
+    document.getElementById('ds-qbank-total').innerText = qbankTotal.toLocaleString();
+    document.getElementById('ds-qbank-sub').innerText   = `${qbankSubs.length} বিষয়`;
+    document.getElementById('ds-today').innerText       = (dashData.totalToday || 0).toLocaleString();
+    const quizTotal2  = Object.keys(dashData.quiz||{}).reduce((s,k)=>s+(dashData.quiz[k].total||0),0);
+    const qbankTotal2 = Object.keys(dashData.qbank||{}).reduce((s,k)=>s+(dashData.qbank[k].total||0),0);
+    const studyTotal2 = Object.keys(dashData.study||{}).reduce((s,k)=>s+(dashData.study[k].total||0),0);
+    const heroQ = document.getElementById('hero-total-q');
+    if (heroQ) heroQ.innerText = (quizTotal2+qbankTotal2+studyTotal2).toLocaleString();
+    renderSubjectChart(currentChartTab);
+}
+
+function renderSubjectChart(tab) {
+    currentChartTab = tab;
+    ['quiz','qbank','study'].forEach(t => {
+        const btn = document.getElementById('chart-btn-' + t);
+        const clrs = { quiz:'bg-indigo-600', qbank:'bg-purple-600', study:'bg-emerald-600' };
+        btn.className = t === tab
+            ? `text-[10px] px-2.5 py-1 rounded-lg font-bold ${clrs[t]} text-white`
+            : 'text-[10px] px-2.5 py-1 rounded-lg font-bold bg-white text-slate-500 border';
+    });
+    const data    = (dashData && dashData[tab]) || {};
+    const entries = Object.entries(data).sort((a,b) => b[1].total - a[1].total);
+    const chartEl = document.getElementById('dash-chart');
+    const gapEl   = document.getElementById('dash-gap-warn');
+    if (!entries.length) { chartEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">কোনো ডেটা নেই</p>`; gapEl.classList.add('hidden-box'); return; }
+    const maxVal = entries[0][1].total || 1;
+    const clrMap = { quiz:'#6366f1', qbank:'#9333ea', study:'#10b981' };
+    const clr    = clrMap[tab];
+    chartEl.innerHTML = entries.map(([sub, d]) => {
+        const pct  = Math.round((d.total / maxVal) * 100);
+        const warn = d.total < 10 ? '⚠️' : d.total < 25 ? '🔶' : '';
+        const mcqB = d.mcq     ? `<span class="text-[9px] bg-blue-100 text-blue-600 px-1 rounded font-bold">${d.mcq}MCQ</span>` : '';
+        const wriB = d.written ? `<span class="text-[9px] bg-orange-100 text-orange-600 px-1 rounded font-bold">${d.written}W</span>`  : '';
+        return `<div class="space-y-0.5">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold text-slate-700 flex-1 truncate">${warn} ${sub}</span>
+                <div class="flex items-center gap-1 ml-1">${mcqB}${wriB}<span class="text-[11px] font-black text-slate-600">${d.total}</span></div>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" style="width:${pct}%;background:${clr};transition:width 0.5s;"></div>
+            </div>
+        </div>`;
+    }).join('');
+    const lowSubs = entries.filter(([,d]) => d.total < 10);
+    if (lowSubs.length) {
+        gapEl.classList.remove('hidden-box');
+        gapEl.innerHTML = `<div class="mt-1 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700 font-bold">⚠️ কম প্রশ্ন: ${lowSubs.map(([s])=>s).join(', ')}</div>`;
+    } else { gapEl.classList.add('hidden-box'); }
+}
+
+/* ══ USERS TAB ══ */
+async function loadUsers(forceRefresh = false) {
+    if (usersData.length && !forceRefresh) { renderUsers(); return; }
+    const icon = document.getElementById('dash-refresh-icon');
+    icon.classList.add('fa-spin');
+
+    // Skeleton cards
+    document.getElementById('dash-users-list').innerHTML = [1,2,3].map(()=>`
+        <div class="user-card flex items-center gap-3">
+            <div class="skeleton w-10 h-10 rounded-full flex-shrink-0"></div>
+            <div class="flex-1 space-y-2">
+                <div class="skeleton h-3 w-3/4 rounded"></div>
+                <div class="skeleton h-2 w-1/2 rounded"></div>
+            </div>
+        </div>`).join('');
+
+    let loaded = false;
+    try {
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 4000);
+        const res  = await fetch(`${SCRIPT_URL}?action=getUsers`, { signal: ctrl.signal });
+        const data = await res.json();
+        if (data && (data.users || Array.isArray(data))) {
+            usersData = data.users || data; loaded = true;
+        }
+    } catch(e) {}
+    if (!loaded) {
+        try {
+            const res  = await fetch(`${FIREBASE_URL}Users.json?auth=${FIREBASE_SK}`);
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+                usersData = Object.entries(data).map(([key, u]) => ({ ...u, Phone: u.Phone || key.replace(/_/g,''), _key: key }));
+                const sRes = await fetch(`${FIREBASE_URL}Analytics/Summary.json?auth=${FIREBASE_SK}`);
+                const sData = await sRes.json();
+                if (sData) {
+                    usersData = usersData.map(u => {
+                        const sp = (u.Phone||'').replace(/[.#$\[\]\s]/g,'_');
+                        const s  = sData[sp] || {};
+                        return { ...u, XP: u.XP||s.xp||0, _totalCorrect:s.totalCorrect||0, _totalWrong:s.totalWrong||0, _totalQuizzes:s.totalQuizzes||0, _totalMinutes:s.totalMinutes||0, _lastActive:s.lastActive||'—' };
+                    });
+                }
+                loaded = true;
+            }
+        } catch(e) {}
+    }
+    if (loaded) {
+        filteredUsers = [...usersData];
+        document.getElementById('hero-total-u').innerText = usersData.length;
+        sortUsers(currentSortKey);
+    } else {
+        document.getElementById('dash-users-list').innerHTML =
+            `<div class="text-center py-8"><i class="fas fa-wifi text-slate-300 text-3xl"></i><p class="text-xs text-slate-400 mt-2 font-bold">লোড ব্যর্থ — রিফ্রেশ করুন</p></div>`;
+    }
+    icon.classList.remove('fa-spin');
+}
+
+function sortUsers(key) {
+    currentSortKey = key;
+    document.querySelectorAll('.user-sort-btn').forEach(b => {
+        b.className = 'user-sort-btn text-[10px] px-3 py-1.5 rounded-full font-bold bg-white text-slate-500 border whitespace-nowrap';
+    });
+    event && event.target && (event.target.className = 'user-sort-btn text-[10px] px-3 py-1.5 rounded-full font-bold bg-indigo-600 text-white whitespace-nowrap');
+
+    filteredUsers.sort((a,b) => {
+        if (key === 'xp')      return (parseInt(b.XP||b.xp||0)) - (parseInt(a.XP||a.xp||0));
+        if (key === 'correct') return (b._totalCorrect||0) - (a._totalCorrect||0);
+        if (key === 'time')    return (b._totalMinutes||0) - (a._totalMinutes||0);
+        if (key === 'quizzes') return (b._totalQuizzes||0) - (a._totalQuizzes||0);
+        if (key === 'name')    return (a.Name||a.name||'').localeCompare(b.Name||b.name||'');
+        return 0;
+    });
+    renderUsers();
+}
+
+function filterUsers(query) {
+    const q = query.toLowerCase().trim();
+    filteredUsers = q
+        ? usersData.filter(u =>
+            (u.Name||u.name||'').toLowerCase().includes(q) ||
+            (u.Phone||u.phone||'').includes(q))
+        : [...usersData];
+    sortUsers(currentSortKey);
+}
+
+function renderUsers() {
+    const listEl = document.getElementById('dash-users-list');
+    const noEl   = document.getElementById('dash-no-users');
+    if (!filteredUsers.length) { listEl.innerHTML=''; noEl.classList.remove('hidden-box'); return; }
+    noEl.classList.add('hidden-box');
+
+    listEl.innerHTML = filteredUsers.map((u, idx) => {
+        const name    = u.Name    || u.name    || '?';
+        const phone   = u.Phone   || u.phone   || '';
+        const xp      = parseInt(u.XP || u.xp || 0);
+        const role    = u.Role    || u.role    || 'Student';
+        const status  = u.Status  || u.status  || 'Inactive';
+        const pic     = u.Picture || u.picture || '';
+        const correct = u._totalCorrect   || 0;
+        const wrong   = u._totalWrong     || 0;
+        const quizzes = u._totalQuizzes   || 0;
+        const mins    = u._totalMinutes   || 0;
+        const lastAct = u._lastActive     || '—';
+        const rank    = idx + 1;
+        const accuracy = (correct + wrong) > 0 ? Math.round(correct/(correct+wrong)*100) : 0;
+        const hrs  = Math.floor(mins/60), remMins = mins%60;
+        const timeStr = hrs > 0 ? `${hrs}ঘ ${remMins}মি` : `${mins}মি`;
+
+        const rankEmoji = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+        const roleColor = role.toLowerCase()==='admin'
+            ? 'bg-red-100 text-red-700' : role.toLowerCase()==='teacher'
+            ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700';
+        const statusColor = status.toLowerCase()==='active'
+            ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500';
+
+        const picHtml = pic
+            ? `<img src="${pic}" class="w-11 h-11 rounded-full object-cover border-2 border-indigo-100 shadow-sm" onerror="this.outerHTML='<div class=\\'w-11 h-11 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-black text-base\\'>${name.charAt(0)}</div>'">`
+            : `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-black text-base">${name.charAt(0)}</div>`;
+
+        return `
+        <div class="user-card">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="relative flex-shrink-0">
+                    ${picHtml}
+                    <span class="absolute -top-1 -left-2 text-sm leading-none">${rankEmoji}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-black text-slate-800 truncate">${name}</p>
+                    <p class="text-[10px] text-slate-400 font-bold">${phone}</p>
+                    <div class="flex items-center gap-1 mt-1 flex-wrap">
+                        <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${roleColor}">${role}</span>
+                        <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${statusColor}">${status}</span>
+                        <span class="text-[9px] font-black text-amber-500 ml-auto">⚡ ${xp.toLocaleString()} XP</span>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 divide-x divide-slate-100 bg-slate-50 rounded-2xl overflow-hidden">
+                <div class="py-2.5 text-center">
+                    <p class="text-[13px] font-black text-emerald-600">${correct.toLocaleString()}</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">সঠিক</p>
+                </div>
+                <div class="py-2.5 text-center">
+                    <p class="text-[13px] font-black text-red-500">${wrong.toLocaleString()}</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">ভুল</p>
+                </div>
+                <div class="py-2.5 text-center">
+                    <p class="text-[13px] font-black text-indigo-600">${accuracy}%</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">accuracy</p>
+                </div>
+                <div class="py-2.5 text-center">
+                    <p class="text-[13px] font-black text-purple-600">${timeStr}</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">সময়</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-2 px-1">
+                <span class="text-[9px] text-slate-400 font-bold">${quizzes}টি quiz · শেষ: ${lastAct}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ══ REPORTS TAB ══ */
+function renderReports(reports) {
+    const listEl  = document.getElementById('dash-reports-list');
+    const noEl    = document.getElementById('dash-no-reports');
+    const countEl = document.getElementById('dash-report-count');
+
+    if (!reports.length) {
+        listEl.innerHTML = '';
+        noEl.classList.remove('hidden-box');
+        countEl.innerText = '';
+        return;
+    }
+    noEl.classList.add('hidden-box');
+    countEl.innerText = reports.length + 'টি';
+
+    listEl.innerHTML = reports.map((r, idx) => {
+        const hasId = r.questionId && r.questionId.toString().trim() !== '';
+
+        // Time format — short করি
+        const shortTime = (r.time || '').replace(/\s*\(.*?\)/g,'').replace(/:\d\d\s*(GMT|AM|PM)?.*$/i,'').trim();
+
+        const editBtn = hasId
+            ? `<button class="btn-edit-report" onclick="loadReportForEdit('${r.questionId}','${r.subject||''}',${idx})">
+                   <i class="fas fa-pen"></i> Edit · ID #${r.questionId}
+               </button>`
+            : `<div class="space-y-2 w-full">
+                   <p class="text-[10px] text-slate-400 font-bold">পুরনো report — ID দিন:</p>
+                   <div class="flex gap-1.5">
+                       <input type="number" id="mid-${idx}" placeholder="ID"
+                           class="flex-1 border-2 border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-indigo-400">
+                       <select id="mtab-${idx}" class="border-2 border-slate-200 rounded-xl px-2 text-xs font-bold focus:outline-none">
+                           <option value="Quiz">Quiz</option>
+                           <option value="QBank">QBank</option>
+                       </select>
+                       <button onclick="loadManualReport(${idx})"
+                           class="bg-indigo-600 text-white px-4 rounded-xl text-xs font-black">Go</button>
+                   </div>
+               </div>`;
+
+        return `
+        <div class="report-card" id="rcard-${idx}" data-phone="${r.phone||''}" data-qid="${r.questionId||''}" data-subject="${r.subject||''}">
+            <div class="report-card-header">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="subject-pill">${r.subject || '?'}</span>
+                        ${r.subtopic ? `<span class="topic-pill">${r.subtopic}</span>` : ''}
+                        <span class="issue-badge"><i class="fas fa-triangle-exclamation" style="font-size:8px;"></i> ${r.issue || ''}</span>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="report-phone">${r.phone || ''}</p>
+                        <p class="report-time">${shortTime}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="report-card-body">
+                <p class="report-question">${r.question || 'প্রশ্ন নেই'}</p>
+            </div>
+            <div class="report-card-footer">
+                ${editBtn}
+                <button class="btn-seen-report" onclick="dismissReport(${idx}, true)" title="দেখেছি — notification পাঠাও">
+                    <i class="fas fa-check"></i><span class="hidden sm:inline"> দেখেছি</span>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* Report এ প্রশ্ন খুঁজে সরাসরি load করব */
+async function findAndLoadReport(idx, questionText, subject) {
+    const fetchDiv = document.getElementById('report-fetch-' + idx);
+    fetchDiv.innerHTML = `<div class="text-center text-xs text-indigo-500 py-1"><i class="fas fa-circle-notch fa-spin mr-1"></i> খুঁজছি...</div>`;
+    try {
+        const q   = encodeURIComponent(questionText.substring(0,50));
+        const res = await fetch(`${SCRIPT_URL}?action=findQuestion&q=${q}`);
+        const data = await res.json();
+        if (data.results && data.results.length) {
+            fetchDiv.innerHTML = data.results.map(item => `
+                <div class="flex items-center gap-2 bg-white border border-indigo-200 rounded-xl p-2">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-[9px] font-bold text-indigo-600">${item.tab} #${item.id}</span>
+                        <p class="text-[10px] text-slate-600 truncate">${item.question}</p>
+                    </div>
+                    <button onclick="loadReportForEdit('${item.id}','${item.tab}')"
+                        class="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold whitespace-nowrap">
+                        Edit
+                    </button>
+                </div>`).join('');
+        } else {
+            fetchDiv.innerHTML = `<p class="text-[10px] text-slate-400 text-center">পাওয়া যায়নি — ID manually দিন</p>
+                <div class="flex gap-2">
+                    <input type="number" id="manual-id-${idx}" placeholder="ID" class="flex-1 border rounded-xl px-3 py-1.5 text-xs">
+                    <select id="manual-tab-${idx}" class="border rounded-xl px-2 py-1.5 text-xs">
+                        <option value="Quiz">Quiz</option><option value="QBank">QBank</option>
+                    </select>
+                    <button onclick="loadManualReport(${idx})" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold">Go</button>
+                </div>`;
+        }
+    } catch(e) {
+        fetchDiv.innerHTML = `<p class="text-[10px] text-red-400 text-center">Error — নেট চেক করুন</p>`;
+    }
+}
+
+function loadReportForEdit(id, subject, idx) {
+    switchMode('Quiz');
+    setTimeout(() => {
+        document.getElementById('search-box-container').classList.remove('hidden-box');
+        document.getElementById('search_id').value = id;
+        fetchDataById();
+        Swal.fire({ icon:'success', title:`#${id} লোড হচ্ছে`, toast:true, position:'top-end', timer:1500, showConfirmButton:false });
+
+        // Edit করার পর notification পাঠানোর option
+        if (idx !== undefined) {
+            const card = document.getElementById('rcard-' + idx);
+            const phone = card?.dataset?.phone || '';
+            if (phone) {
+                setTimeout(() => {
+                    Swal.fire({
+                        icon: 'question',
+                        title: 'Edit সম্পন্ন?',
+                        text: 'Student কে notification পাঠাবেন?',
+                        showCancelButton: true,
+                        confirmButtonText: '📲 হ্যাঁ, পাঠাও',
+                        cancelButtonText: 'না',
+                        confirmButtonColor: '#4f46e5',
+                    }).then(res => {
+                        if (res.isConfirmed) {
+                            sendResolveNotification(phone, id, subject);
+                            dismissReport(idx, false);
+                        }
+                    });
+                }, 1500);
+            }
+        }
+    }, 300);
+}
+
+function loadManualReport(idx) {
+    const id  = document.getElementById('mid-' + idx)?.value;
+    if (!id) return;
+    loadReportForEdit(id, '', idx);
+}
+
+/* ── Firebase এ notification লিখি ── */
+const FIREBASE_URL = 'https://smartentrydb-default-rtdb.firebaseio.com/';
+const FIREBASE_SK  = 'CsFdxaWLLU2AT92kxYFPTOhP1ewDR0jzK3hKjqWO';
+
+async function sendResolveNotification(phone, questionId, subject) {
+    if (!phone) return;
+
+    // ১. Firebase এ notification লেখো (in-app polling এর জন্য)
+    const safePhone = phone.toString().trim().replace(/[.#$\[\]\s]/g, '_');
+    const key = 'notif_' + Date.now();
+    const payload = {
+        type: 'report_resolved',
+        title: '✅ আপনার রিপোর্ট সমাধান হয়েছে!',
+        body: `"${subject || 'প্রশ্নটি'}" সংশোধন করা হয়েছে।`,
+        questionId: questionId || '',
+        time: new Date().toLocaleString(),
+        read: false
+    };
+    try {
+        await fetch(`${FIREBASE_URL}Notifications/${safePhone}/${key}.json?auth=${FIREBASE_SK}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch(e) { console.error('Firebase write error:', e); }
+
+    // ২. GAS এর মাধ্যমে Real FCM Push পাঠাও
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                type: 'resolve_report',
+                phone: phone,
+                subject: subject || 'প্রশ্নটি',
+                questionId: questionId || ''
+            })
+        });
+        Swal.fire({ icon:'success', title:'📲 Notification পাঠানো হয়েছে!', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+    } catch(e) {
+        console.error('FCM error:', e);
+        Swal.fire({ icon:'warning', title:'Firebase OK, FCM ব্যর্থ', toast:true, position:'top-end', timer:3000, showConfirmButton:false });
+    }
+}
+
+/* ── Broadcast — সবাইকে notification ── */
+async function sendBroadcastNotification() {
+    const title = document.getElementById('bc-title').value.trim();
+    const body  = document.getElementById('bc-body').value.trim();
+    if (!title || !body) { Swal.fire({ icon:'warning', title:'Title ও Message দিন', toast:true, position:'top-end', timer:2000, showConfirmButton:false }); return; }
+
+    const btn = event.target;
+    btn.innerText = '⏳ পাঠানো হচ্ছে...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ type: 'broadcast_notification', title, body })
+        });
+        const data = await res.json();
+        Swal.fire({ icon:'success', title:`✅ ${data.fcm?.sent || 0} জনকে পাঠানো হয়েছে!`, toast:true, position:'top-end', timer:3000, showConfirmButton:false });
+        document.getElementById('bc-title').value = '';
+        document.getElementById('bc-body').value  = '';
+    } catch(e) {
+        Swal.fire({ icon:'error', title:'পাঠাতে সমস্যা হয়েছে', text: e.message, toast:true, position:'top-end', timer:3000, showConfirmButton:false });
+    } finally {
+        btn.innerText = '🚀 সবাইকে পাঠাও';
+        btn.disabled = false;
+    }
+}
+
+/* ── Single user notification ── */
+async function sendSingleNotification() {
+    const phone = document.getElementById('single-phone').value.trim();
+    const title = document.getElementById('single-title').value.trim();
+    const body  = document.getElementById('single-body').value.trim();
+    if (!phone || !title || !body) { Swal.fire({ icon:'warning', title:'সব field পূরণ করুন', toast:true, position:'top-end', timer:2000, showConfirmButton:false }); return; }
+
+    const btn = event.target;
+    btn.innerText = '⏳ পাঠানো হচ্ছে...';
+    btn.disabled = true;
+
+    try {
+        // Firebase এ লেখো
+        const safePhone = phone.replace(/[.#$\[\]\s]/g, '_');
+        const key = 'notif_' + Date.now();
+        await fetch(`${FIREBASE_URL}Notifications/${safePhone}/${key}.json?auth=${FIREBASE_SK}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type:'custom', title, body, time: new Date().toLocaleString(), read: false })
+        });
+        // FCM Push পাঠাও
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ type: 'resolve_report', phone, subject: body, questionId: '' })
+        });
+        Swal.fire({ icon:'success', title:'📲 Notification পাঠানো হয়েছে!', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+        document.getElementById('single-phone').value = '';
+        document.getElementById('single-title').value = '';
+        document.getElementById('single-body').value  = '';
+    } catch(e) {
+        Swal.fire({ icon:'error', title:'পাঠাতে সমস্যা হয়েছে', text: e.message, toast:true, position:'top-end', timer:3000, showConfirmButton:false });
+    } finally {
+        btn.innerText = '📲 পাঠাও';
+        btn.disabled = false;
+    }
+}
+
+/* ── Template use ── */
+function useTemplate(title, body) {
+    document.getElementById('bc-title').value = title;
+    document.getElementById('bc-body').value  = body;
+    Swal.fire({ icon:'info', title:'Template বসানো হয়েছে!', text:'Title ও Message edit করে পাঠাও', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+}
+
+function dismissReport(idx, sendNotif = true) {
+    const el = document.getElementById('rcard-' + idx);
+    if (!el) return;
+
+    if (sendNotif) {
+        const phone = el.dataset?.phone || '';
+        const qid   = el.dataset?.qid   || '';
+        const subj  = el.dataset?.subject || '';
+        if (phone) sendResolveNotification(phone, qid, subj);
+    }
+
+    el.classList.add('report-card-slide-out');
+    setTimeout(() => {
+        el.remove();
+        const remaining = document.querySelectorAll('#dash-reports-list .report-card').length;
+        const countEl = document.getElementById('dash-report-count');
+        countEl.innerText = remaining > 0 ? remaining + 'টি' : '';
+        if (remaining === 0) document.getElementById('dash-no-reports').classList.remove('hidden-box');
+    }, 320);
+}
+
+/* ── shared helpers ── */
+async function loadDashboardOnOpen() {
+    await loadDashboard(false);
+}
+
+/* ─── IndexedDB Offline Queue ─── */
+const DB_NAME_Q = 'SmartEntryDB', STORE_Q = 'offlineQueue';
+
+function openQueueDB() {
+    return new Promise((res, rej) => {
+        const req = indexedDB.open(DB_NAME_Q, 1);
+        req.onupgradeneeded = ev => {
+            const db = ev.target.result;
+            if (!db.objectStoreNames.contains(STORE_Q))
+                db.createObjectStore(STORE_Q, { keyPath: 'id', autoIncrement: true });
+        };
+        req.onsuccess = ev => res(ev.target.result);
+        req.onerror   = ev => rej(ev.target.error);
+    });
+}
+
+async function addToQueue(params) {
+    const db = await openQueueDB();
+    return new Promise((res, rej) => {
+        const tx  = db.transaction(STORE_Q, 'readwrite');
+        const req = tx.objectStore(STORE_Q).add({ params, ts: Date.now() });
+        req.onsuccess = () => res(req.result);
+        req.onerror   = ev => rej(ev.target.error);
+    });
+}
+
+async function getQueueCount() {
+    try {
+        const db = await openQueueDB();
+        return new Promise((res) => {
+            const tx  = db.transaction(STORE_Q, 'readonly');
+            const req = tx.objectStore(STORE_Q).count();
+            req.onsuccess = () => res(req.result);
+            req.onerror   = ()  => res(0);
+        });
+    } catch(_) { return 0; }
+}
+
+async function updateQueueBadge() {
+    const count = await getQueueCount();
+    const badge = document.getElementById('queue-badge');
+    if (count > 0) {
+        document.getElementById('queue-count-text').innerText = `${count}টি অপেক্ষায়`;
+        document.getElementById('queue-badge').style.display = 'flex';
+    badge.classList.add('visible');
+    } else {
+        document.getElementById('queue-badge').style.display = 'none';
+    badge.classList.remove('visible');
+    }
+}
+
+async function forceSyncNow() {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'FORCE_SYNC' });
+        Swal.fire({ icon:'info', title:'সিনক শুরু হচ্ছে...', toast:true, position:'top-end', timer:1500, showConfirmButton:false });
+    } else {
+        // SW নেই — সরাসরি পাঠানোর চেষ্টা
+        await flushQueueDirect();
+    }
+}
+
+async function flushQueueDirect() {
+    const db = await openQueueDB();
+    const items = await new Promise(res => {
+        const tx = db.transaction(STORE_Q, 'readonly');
+        tx.objectStore(STORE_Q).getAll().onsuccess = e => res(e.target.result);
+    });
+    if (!items.length) return;
+    let sent = 0;
+    for (const item of items) {
+        try {
+            await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(item.params) });
+            const tx = db.transaction(STORE_Q, 'readwrite');
+            tx.objectStore(STORE_Q).delete(item.id);
+            sent++;
+        } catch (_) { break; }
+    }
+    if (sent > 0) { playBulkDone(); showOfflineSyncToast(sent); updateQueueBadge(); }
+}
+
+function updateOnlineStatus() {
+    const bar  = document.getElementById('net-status-bar');
+    const text = document.getElementById('net-status-text');
+    const online = navigator.onLine;
+    bar.className = 'show ' + (online ? 'online' : 'offline');
+    text.innerText = online
+        ? 'অনলাইন — অফলাইন প্রশ্ন পাঠানো হচ্ছে...'
+        : 'অফলাইন — প্রশ্ন সেভ হচ্ছে, নেট আসলে পাঠাবে';
+    // কয়েক সেকেন্ড পর লুকাও (শুধু online হলে)
+    if (online) {
+        setTimeout(() => { bar.classList.remove('show'); }, 3000);
+        // queue flush
+        setTimeout(flushQueueDirect, 500);
+    }
+    updateQueueBadge();
+}
+
+function showOfflineSyncToast(sent) {
+    const toast = document.getElementById('sync-toast');
+    document.getElementById('sync-toast-text').innerText = `✅ ${sent}টি প্রশ্ন শিটে যোগ হয়েছে!`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+/* ─── Submit ─── */
+async function sendData() {
+    playClick(); // ক্লিক সাউন্ড
+
+    const isQB = currentMode === 'QBank';
+    const searchId = document.getElementById('search_id').value;
+    const currentSub = document.getElementById(isQB ? 'qb_subject' : 'subject').value;
+    const params = {
+        targetTab: currentMode, qType: currentType, editId: searchId || '',
+        subject: currentSub, topic: isQB ? document.getElementById('topic').value : '',
+        sub_topic:   document.getElementById(isQB ? 'qb_sub_topic' : 'sub_topic').value,
+        mainQpaper:  document.getElementById('main_qpaper_url').value,
+        question:    document.getElementById('question').value,
+        opt1: document.getElementById('opt1').value, opt2: document.getElementById('opt2').value,
+        opt3: document.getElementById('opt3').value, opt4: document.getElementById('opt4').value,
+        correct:     document.getElementById('correct').value,
+        explanation: document.getElementById('explanation').value,
+        technique:   document.getElementById('showTechnique').checked ? document.getElementById('technique').value : '',
+        audienceTags: audCurrentTags.join(','),
+        timestamp:   new Date().toLocaleString()
+    };
+    if (!searchId) document.getElementById('todayCount').innerText = parseInt(document.getElementById('todayCount').innerText||'0') + 1;
+    const heroToday = document.getElementById('ds-today'); if(heroToday) heroToday.innerText = document.getElementById('todayCount').innerText;
+    localStorage.setItem('admin_today_count', document.getElementById('todayCount').innerText);
+    if (currentSub && cachedSubjects[currentMode] && !cachedSubjects[currentMode].includes(currentSub)) {
+        cachedSubjects[currentMode].push(currentSub); updateSubjectDatalist();
+    }
+
+    // Duplicate check — নতুন entry হলেই চেক করো (edit নয়)
+    if (!searchId && params.question && params.sub_topic) {
+        params.dupCheck = true;
+    }
+
+    if (!navigator.onLine) {
+        // অফলাইন — IndexedDB তে সেভ
+        await addToQueue(params);
+        updateQueueBadge();
+        Swal.fire({ icon:'warning', title:'অফলাইনে সেভ হয়েছে', text:'নেট আসলে স্বয়ংক্রিয়ভাবে পাঠানো হবে।', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+        resetForm();
+        // Background sync রেজিস্ট্রেশন
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready.catch(()=>null);
+            reg?.sync?.register('sync-questions').catch(()=>{});
+        }
+        return;
+    }
+
+    // অনলাইন — optimistic: সাথে সাথে reset+focus, background এ save
+    clearDraft();
+    Swal.fire({ icon:'success', title:'✅ Submitting...', toast:true, position:'top-end', timer:700, showConfirmButton:false });
+    resetForm(); // সাথে সাথে reset — focus আসবে
+
+    // Background এ GAS call
+    fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(params) })
+        .then(r => r.json())
+        .then(data => {
+            if (data?.result === 'duplicate') {
+                Swal.fire({ icon:'warning', title:'⚠️ Duplicate!', text: data.message || 'এই sub-topic-এ প্রশ্নটি আগে থেকেই আছে', toast:true, position:'top-end', timer:3500, showConfirmButton:false });
+                return;
+            }
+            if (data?.id) {
+                document.getElementById('lastAddedId').innerText = data.id;
+                localStorage.setItem('last_added_id', data.id);
+            }
+        })
+        .catch(async () => {
+            // নেটওয়ার্ক error — queue তে রাখো
+            await addToQueue(params);
+            updateQueueBadge();
+            Swal.fire({ icon:'warning', title:'Queue তে সেভ হয়েছে', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+        });
+}
+
+/* ─── Reset (lock logic restored) ─── */
+function resetForm() {
+    const isQB     = currentMode === 'QBank';
+    const isS      = currentMode === 'Study';
+    const lock     = isQB ? document.getElementById('lockFieldsQB').checked : document.getElementById('lockFields').checked;
+    const lockType = document.getElementById('lockType').checked;
+
+    if (!lock) {
+        ['subject','sub_topic','qb_subject','qb_sub_topic','topic'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+        document.getElementById('main_qpaper_url').value = '';
+        document.getElementById('qp-icon').className     = 'fas fa-file-image text-purple-500';
+        document.getElementById('qPaperStatus').innerText = 'UPLOAD';
+    }
+    ['question','opt1','opt2','opt3','opt4','correct','explanation','technique','search_id'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+
+    closeMagic(); updatePreview('');
+    // Tags reset — lock থাকলে reset করবে না
+    if (!lock) audResetTags();
+    document.getElementById('submitBtn').innerText        = 'Submit Data';
+    document.getElementById('submitBtn').style.background = 'linear-gradient(90deg,#1e40af,#3b82f6)';
+    document.getElementById('search-box-container').classList.add('hidden-box');
+
+    if (!isS && !lockType) setQuestionType('MCQ');
+    clearDraft(); // submit/reset হলে draft clear করো
+    setTimeout(() => { document.getElementById(isS ? 'explanation' : 'question')?.focus(); }, 50);
+}
+
+/* ─── Subject Datalist ─── */
+function updateSubjectDatalist() {
+    const selectSubject = currentMode === 'QBank' ? 'qb_subject' : 'subject';
+    const selectEl = document.getElementById(selectSubject);
+    if (!selectEl) return;
+    const currentVal = selectEl.value;
+    selectEl.innerHTML = '<option value="">-- Select --</option>';
+    const subjects = cachedSubjects[currentMode] || [];
+    subjects.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.innerText = s;
+        selectEl.appendChild(opt);
+    });
+    const addOpt = document.createElement('option');
+    addOpt.value = '__add_new__';
+    addOpt.innerText = '➕ Add New';
+    selectEl.appendChild(addOpt);
+    if (currentVal && currentVal !== '__add_new__') selectEl.value = currentVal;
+}
+
+function handleSubjectChange(selectEl, selectId) {
+    if (selectEl.value === '__add_new__') {
+        selectEl.value = '';
+        addNewSubject(selectId, currentMode);
+    }
+}
+
+async function addNewSubject(selectId, mode) {
+    const { value: newSubject } = await Swal.fire({
+        title: '➕ Add New',
+        input: 'text',
+        inputPlaceholder: 'বিষয়ের নাম লিখুন...',
+        showCancelButton: true,
+        confirmButtonText: '✅ Add',
+        cancelButtonText: 'বাতিল',
+        confirmButtonColor: '#2563eb',
+        inputValidator: (value) => {
+            if (!value || !value.trim()) return 'Add New!';
+            const existing = (cachedSubjects[mode] || []).map(s => s.toLowerCase());
+            if (existing.includes(value.trim().toLowerCase())) return 'এই বিষয়টি আগেই আছে!';
+        }
+    });
+    if (!newSubject || !newSubject.trim()) return;
+    const trimmed = newSubject.trim();
+    if (!cachedSubjects[mode]) cachedSubjects[mode] = [];
+    cachedSubjects[mode].push(trimmed);
+    cachedSubjects[mode].sort((a, b) => a.localeCompare(b, 'bn'));
+    updateSubjectDatalist();
+    const selectEl2 = document.getElementById(selectId);
+    if (selectEl2) selectEl2.value = trimmed;
+    updateBulkSubjectList();
+    Swal.fire({ icon: 'success', title: '"' + trimmed + '" যোগ হয়েছে!', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+}
+
+async function loadSubjectSuggestions() {
+    try {
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 4000);
+        const res  = await fetch(`${SCRIPT_URL}?action=getSubjects`, { signal: ctrl.signal });
+        const data = await res.json();
+        if (data && Object.keys(data).length) {
+            cachedSubjects = data; updateSubjectDatalist(); updateBulkSubjectList(); return;
+        }
+    } catch(e) {}
+    // Firebase fallback — subject কলাম থেকে extract করো
+    try {
+        const extractSubjects = (arr) => {
+            if (!arr || !Array.isArray(arr)) return [];
+            const subs = arr.map(r => (r && (r.subject || r.Subject || '')).toString().trim()).filter(Boolean);
+            return [...new Set(subs)].sort((a,b) => a.localeCompare(b, 'bn'));
+        };
+        const [qR, qbR, sR] = await Promise.all([
+            fetch(`${FIREBASE_URL}Quiz.json?auth=${FIREBASE_SK}`),
+            fetch(`${FIREBASE_URL}QBank.json?auth=${FIREBASE_SK}`),
+            fetch(`${FIREBASE_URL}Study.json?auth=${FIREBASE_SK}`)
+        ]);
+        const [qd, qbd, sd] = await Promise.all([qR.json(), qbR.json(), sR.json()]);
+        if (qd)  cachedSubjects['Quiz']  = extractSubjects(qd);
+        if (qbd) cachedSubjects['QBank'] = extractSubjects(qbd);
+        if (sd)  cachedSubjects['Study'] = extractSubjects(sd);
+        updateSubjectDatalist(); updateBulkSubjectList();
+    } catch(e) {}
+}
+
+/* ─── Bulk Helpers ─── */
+function updateBulkSubjectList() {
+    const target = document.getElementById('bulk_target').value;
+    const select = document.getElementById('bulk_subject_select');
+    select.innerHTML = '<option value="">-- Select --</option>';
+    (cachedSubjects[target] || []).forEach(s => {
+        const o = document.createElement('option');
+        o.value = s; o.innerText = s;
+        select.appendChild(o);
+    });
+    const addOpt2 = document.createElement('option');
+    addOpt2.value = '__add_new__';
+    addOpt2.innerText = '➕ Add New';
+    select.appendChild(addOpt2);
+}
+
+function handleBulkSubjectChange(selectEl) {
+    if (selectEl.value === '__add_new__') {
+        selectEl.value = '';
+        const target = document.getElementById('bulk_target').value;
+        addNewBulkSubject(target);
+    }
+}
+
+async function addNewBulkSubject(mode) {
+    const { value: newSubject } = await Swal.fire({
+        title: '➕ Add New',
+        input: 'text',
+        inputPlaceholder: 'বিষয়ের নাম লিখুন...',
+        showCancelButton: true,
+        confirmButtonText: '✅ যোগ করুন',
+        cancelButtonText: 'বাতিল',
+        confirmButtonColor: '#2563eb',
+        inputValidator: (value) => {
+            if (!value || !value.trim()) return 'বিষয়ের নাম দিন!';
+            const existing = (cachedSubjects[mode] || []).map(s => s.toLowerCase());
+            if (existing.includes(value.trim().toLowerCase())) return 'এই বিষয়টি আগেই আছে!';
+        }
+    });
+    if (!newSubject || !newSubject.trim()) return;
+    const trimmed = newSubject.trim();
+    if (!cachedSubjects[mode]) cachedSubjects[mode] = [];
+    cachedSubjects[mode].push(trimmed);
+    cachedSubjects[mode].sort((a, b) => a.localeCompare(b, 'bn'));
+    updateBulkSubjectList();
+    const select = document.getElementById('bulk_subject_select');
+    if (select) select.value = trimmed;
+    Swal.fire({ icon: 'success', title: '"' + trimmed + '" যোগ হয়েছে!', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+}
+
+
+function parseBulkLine(line, qtype) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return { skip: true };
+    const parts = trimmed.split(';').map(p => p.trim());
+    if (qtype === 'Written') {
+        if (parts.length < 2) return { err: true, reason: 'Written: কমপক্ষে প্রশ্ন ও উত্তর দিন' };
+        return { ok:true, q:parts[0], correct:parts[1], explanation:parts[2]||'' };
+    } else {
+        if (parts.length < 6) return { err: true, reason: `MCQ: ${parts.length} কলাম পাওয়া গেছে (দরকার ৬+)` };
+        return { ok:true, q:parts[0], opt1:parts[1], opt2:parts[2], opt3:parts[3], opt4:parts[4], correct:parts[5], explanation:parts[6]||'' };
+    }
+}
+
+function validateBulkData() {
+    const raw   = document.getElementById('bulk_data').value;
+    const qtype = document.getElementById('bulk_qtype').value;
+    if (!raw.trim()) { document.getElementById('bulk-stat-row').classList.add('hidden-box'); document.getElementById('bulk-validate-badge').innerText=''; return; }
+    let total=0, ok=0, skip=0, err=0;
+    raw.split('\n').forEach(l => { total++; const r=parseBulkLine(l,qtype); if(r.skip) skip++; else if(r.err) err++; else ok++; });
+    document.getElementById('bulk-stat-row').classList.remove('hidden-box');
+    document.getElementById('bs-total').innerText = `Total: ${total}`;
+    document.getElementById('bs-ok').innerText    = `Valid: ${ok}`;
+    document.getElementById('bs-skip').innerText  = `Skip: ${skip}`;
+    document.getElementById('bs-err').innerText   = `Wrong: ${err}`;
+    const badge = document.getElementById('bulk-validate-badge');
+    badge.className = 'bulk-validate-badge ' + (err>0 ? 'badge-invalid' : 'badge-valid');
+    badge.innerText = err>0 ? `⚠ ${err} লাইন ভুল` : ok>0 ? `✔ ${ok} প্রস্তুত` : '';
+}
+
+function appendLog(msg, cls) {
+    const log = document.getElementById('bulk-log');
+    log.style.display = 'block';
+    const d = document.createElement('div'); d.className=cls; d.innerText=msg;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+}
+
+function clearBulkUI() {
+    document.getElementById('bulk-log').innerHTML = '';
+    document.getElementById('bulk-log').style.display = 'none';
+    document.getElementById('bulk-progress-wrap').style.display = 'none';
+    document.getElementById('bulk-progress-text').classList.add('hidden-box');
+    document.getElementById('bulk-validate-badge').innerText = '';
+    document.getElementById('bulk-stat-row').classList.add('hidden-box');
+}
+
+/* ─── Background Result Check ─── */
+function checkLastBulkResult() {
+    const raw = localStorage.getItem('bulk_last_result');
+    if (!raw) return;
+    try {
+        const r = JSON.parse(raw);
+        // শুধু ১ ঘণ্টার মধ্যের result দেখাবে
+        const age = Date.now() - new Date(r.time).getTime();
+        if (age > 3600000) { localStorage.removeItem('bulk_last_result'); return; }
+
+        const icon  = r.status === 'success' ? '✅' : '⚠️';
+        const color = r.status === 'success' ? '#059669' : '#d97706';
+        const msg   = r.status === 'success'
+            ? `${r.sent}টি প্রশ্ন সফলভাবে যোগ হয়েছিল`
+            : `${r.sent} সফল · ${r.failed} ব্যর্থ হয়েছিল`;
+
+        Swal.fire({
+            icon: r.status === 'success' ? 'success' : 'warning',
+            title: `${icon} বাল্ক আপলোড রিপোর্ট`,
+            html: `<div style="font-size:13px;">${msg}<br><span style="color:#94a3b8;font-size:11px;">${r.time}</span></div>`,
+            toast: true, position: 'top-end', timer: 4000,
+            showConfirmButton: r.status !== 'success',
+            confirmButtonText: 'ঠিক আছে'
+        });
+        localStorage.removeItem('bulk_last_result');
+    } catch(_) { localStorage.removeItem('bulk_last_result'); }
+}
+
+// retryFailed2 — failed panel এর বাটনের জন্য
+function retryFailed2() { retryFailed(); }
+
+
+let bulkStopped   = false;
+let failedItems   = [];
+let bulkStartTime = null;
+let bulkTimerInterval = null;
+let wakeLock      = null;
+const BATCH_SIZE  = 10;  // parallel requests — increased for speed
+
+async function acquireWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            document.getElementById('wakelock-dot').style.display = 'inline-block';
+            wakeLock.addEventListener('release', () => {
+                document.getElementById('wakelock-dot').style.display = 'none';
+            });
+        } catch(e) {}
+    }
+}
+async function releaseWakeLock() {
+    if (wakeLock) { try { await wakeLock.release(); } catch(e) {} wakeLock = null; }
+    document.getElementById('wakelock-dot').style.display = 'none';
+}
+
+function startBulkTimer() {
+    bulkStartTime = Date.now();
+    const el = document.getElementById('p-elapsed');
+    bulkTimerInterval = setInterval(() => {
+        const sec = Math.floor((Date.now() - bulkStartTime) / 1000);
+        const m = Math.floor(sec/60), s = sec%60;
+        el.innerText = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 500);
+}
+function stopBulkTimer() { clearInterval(bulkTimerInterval); bulkTimerInterval = null; }
+
+function updatePanel(done, total, failed) {
+    document.getElementById('p-done').innerText  = done;
+    document.getElementById('p-total').innerText = total;
+    const pct = total ? Math.round(done/total*100) : 0;
+    document.getElementById('p-pct').innerText   = pct + '%';
+    document.getElementById('bulk-progress-bar').style.width = pct + '%';
+
+    // ETA
+    if (done > 1 && bulkStartTime) {
+        const elapsed = Date.now() - bulkStartTime;
+        const msEach  = elapsed / done;
+        const remSec  = Math.round(msEach * (total - done) / 1000);
+        const m = Math.floor(remSec/60), s = remSec%60;
+        document.getElementById('p-eta').innerText = remSec > 0
+            ? `বাকি ~${m>0?m+'মি ':''}${s}সে`
+            : 'প্রায় শেষ...';
+    }
+
+    // Status text
+    const ok = done - failed;
+    let txt = `✔ ${ok} সফল`;
+    if (failed) txt += ` · ✗ ${failed} ব্যর্থ`;
+    document.getElementById('p-status-text').innerText = txt;
+}
+
+function stopBulk() {
+    bulkStopped = true;
+    document.getElementById('p-status-text').innerText = '⛔ Stopping...';
+}
+
+function clearBulkPanel() {
+    document.getElementById('bulk-panel').classList.remove('active');
+    stopBulkTimer();
+}
+
+async function retryFailed() {
+    if (!failedItems.length) return;
+    const target   = document.getElementById('bulk_target').value;
+    const qtype    = document.getElementById('bulk_qtype').value;
+    const selSub   = document.getElementById('bulk_subject_select').value;
+    const newSub   = document.getElementById('bulk_sub_topic').value.trim();
+    const finalSub = selSub || newSub;
+    const toRetry  = [...failedItems];
+    failedItems    = [];
+    document.getElementById('bulkRetryBtn').style.display  = 'none';
+    document.getElementById('bulkRetryBtn2').style.display = 'flex';
+    appendLog('─── ⟳ রিট্রাই শুরু হচ্ছে ───', 'log-ok');
+    bulkStopped = false;
+    document.getElementById('p-total').innerText = toRetry.length;
+    document.getElementById('p-done').innerText  = 0;
+    document.getElementById('bulk-progress-bar').style.width      = '0%';
+    document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#6366f1,#3b82f6,#10b981)';
+    document.getElementById('bulk-complete-badge').style.display  = 'none';
+    document.getElementById('panel-btns-running').style.display   = 'flex';
+    document.getElementById('panel-btns-failed').style.display    = 'none';
+    startBulkTimer();
+    await acquireWakeLock();
+    const res = await runUpload(toRetry, target, qtype, finalSub, newSub);
+    stopBulkTimer();
+    await releaseWakeLock();
+    finishUpload(res.sent, res.failed, res.skipped||0, 0);
+}
+
+async function sendOne(item, target, qtype, finalSub, newSub, counters, total) {
+    const params = {
+        targetTab: target, qType: qtype, subject: finalSub,
+        sub_topic: newSub || finalSub,
+        topic: target === 'QBank' ? (newSub || finalSub) : '',
+        question: item.q, opt1:item.opt1||'', opt2:item.opt2||'', opt3:item.opt3||'', opt4:item.opt4||'',
+        correct: item.correct, explanation: item.explanation||'',
+        audienceTags: audCurrentTags.join(','),
+        timestamp: new Date().toLocaleString(),
+        bulkMode: true,   // Firebase sync skip করবে
+        dupCheck: true    // duplicate block করবে
+    };
+    try {
+        if (!navigator.onLine) throw new Error('offline');
+        const res  = await fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(params) });
+        const data = await res.json().catch(() => ({}));
+
+        if (data.result === 'duplicate') {
+            counters.skipped = (counters.skipped||0) + 1;
+            appendLog(`⏭ আগে থেকেই আছে (L${item.line}): ${item.q.substring(0,45)}...`, 'log-skip');
+        } else {
+            counters.sent++;
+            appendLog(`✔ ${item.q.substring(0,55)}...`, 'log-ok');
+        }
+    } catch(e) {
+        if (!navigator.onLine) {
+            await addToQueue(params);
+            counters.sent++;
+            appendLog(`☁ অফলাইনে সেভ (L${item.line}): ${item.q.substring(0,40)}...`, 'log-ok');
+        } else {
+            counters.failed++;
+            failedItems.push(item);
+            appendLog(`✗ ব্যর্থ (L${item.line}): ${item.q.substring(0,40)}...`, 'log-err');
+        }
+    }
+    updatePanel(counters.sent + (counters.skipped||0) + counters.failed, total, counters.failed);
+}
+
+async function runUpload(items, target, qtype, finalSub, newSub) {
+    const counters = { sent: 0, failed: 0, skipped: 0 };
+    const total    = items.length;
+
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+        if (bulkStopped) {
+            appendLog('⛔ আপলোড বন্ধ করা হয়েছে।', 'log-err');
+            break;
+        }
+        const batch = items.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(item => sendOne(item, target, qtype, finalSub, newSub, counters, total)));
+    }
+
+    // সব শেষে একবার Firebase sync trigger
+    if (!bulkStopped && counters.sent > 0 && navigator.onLine) {
+        try {
+            appendLog('🔄 Firebase sync হচ্ছে...', 'log-ok');
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ type: 'bulkSyncDone', tabs: target })
+            });
+            appendLog('☁ Firebase sync সম্পন্ন', 'log-ok');
+        } catch(_) {}
+    }
+
+    return counters;
+}
+
+function finishUpload(sent, failed, skipped, skipCount) {
+    document.getElementById('bulkSendBtn').classList.remove('btn-loading');
+    document.getElementById('todayCount').innerText = parseInt(document.getElementById('todayCount').innerText) + sent;
+
+    const runningBtns = document.getElementById('panel-btns-running');
+    const failedBtns  = document.getElementById('panel-btns-failed');
+    const completeBadge = document.getElementById('bulk-complete-badge');
+
+    if (bulkStopped) {
+        // ── থামানো হয়েছে ──
+        document.getElementById('p-status-text').innerText = `⛔ থামানো। ${sent} সফল · ${failed} ব্যর্থ${skipped > 0 ? ` · ${skipped} duplicate` : ''}`;
+        document.getElementById('p-eta').innerText = 'থামানো';
+        runningBtns.style.display = 'flex';
+        failedBtns.style.display  = 'none';
+        completeBadge.style.display = 'none';
+        if (failedItems.length > 0) {
+            document.getElementById('bulkRetryBtn').style.display = 'flex';
+        }
+
+    } else if (failed === 0 && sent > 0) {
+        // ── ১০০% সফল ──
+        runningBtns.style.display   = 'none';
+        failedBtns.style.display    = 'none';
+        completeBadge.style.display = 'flex';
+
+        const elapsed = bulkStartTime ? Math.round((Date.now() - bulkStartTime) / 1000) : 0;
+        const m = Math.floor(elapsed/60), s = elapsed%60;
+        document.getElementById('bulk-complete-text').innerText = `${sent}টি প্রশ্ন যোগ হয়েছে${skipped > 0 ? ` · ${skipped}টি আগে থেকেই ছিল` : ''}!`;
+        document.getElementById('bulk-complete-sub').innerText  = `সময় লেগেছে: ${m>0?m+'মি ':''} ${s}সে`;
+        document.getElementById('p-status-text').innerText = '';
+        document.getElementById('p-eta').innerText = '✅';
+        document.getElementById('p-pct').innerText = '100%';
+
+        // সাউন্ড
+        playBulkDone();
+
+        // ২ সেকেন্ড পর auto-clear
+        setTimeout(() => {
+            document.getElementById('bulk_data').value = '';
+            clearBulkUI();
+            // badge reset
+            document.getElementById('bulk-complete-badge').style.display = 'none';
+            runningBtns.style.display = 'flex';
+            document.getElementById('bulkRetryBtn').style.display = 'none';
+        }, 3000);
+
+    } else if (failed > 0) {
+        // ── কিছু ব্যর্থ ──
+        runningBtns.style.display   = 'none';
+        completeBadge.style.display = 'none';
+        failedBtns.style.display    = 'flex';
+        document.getElementById('p-status-text').innerText = `⚠️ ${sent} সফল · ${failed}টি পাঠানো যায়নি`;
+        document.getElementById('p-eta').innerText = 'ব্যর্থ';
+        // progress bar লাল করো
+        document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+    }
+
+    // Background থেকে app এ ফিরলে বোঝার জন্য localStorage flag
+    if (!bulkStopped) {
+        localStorage.setItem('bulk_last_result', JSON.stringify({
+            sent, failed, skipCount,
+            time: new Date().toLocaleString(),
+            status: failed === 0 ? 'success' : 'partial'
+        }));
+    }
+}
+
+async function processBulkData() {
+    const raw    = document.getElementById('bulk_data').value.trim();
+    const target = document.getElementById('bulk_target').value;
+    const qtype  = document.getElementById('bulk_qtype').value;
+    const selSub = document.getElementById('bulk_subject_select').value;
+    const newSub = document.getElementById('bulk_sub_topic').value.trim();
+    const finalSub = selSub || newSub;
+
+    if (!raw)      return Swal.fire('Error','প্রশ্ন দিন!','error');
+    if (!finalSub) return Swal.fire('Error','Subject / Sub-Topic দিন!','error');
+
+    const lines  = raw.split('\n');
+    const parsed = lines.map((l,i) => ({ line:i+1, raw:l, ...parseBulkLine(l,qtype) }));
+    const valid  = parsed.filter(p => p.ok);
+    const errors = parsed.filter(p => p.err);
+
+    if (valid.length === 0) return Swal.fire('Error','কোনো বৈধ প্রশ্ন নেই!','warning');
+
+    if (errors.length > 0) {
+        const skipLines = parsed.filter(p => p.skip);
+        let detailHtml  = `<div style="text-align:left;max-height:200px;overflow-y:auto;font-size:12px;margin-top:8px;">`;
+        if (errors.length) {
+            detailHtml += `<p style="font-weight:800;color:#b91c1c;margin-bottom:4px;">❌ ভুল লাইন (${errors.length}টি):</p>`;
+            errors.forEach(e => {
+                detailHtml += `<div style="background:#fee2e2;border-radius:6px;padding:4px 8px;margin-bottom:3px;">
+                    <b>Line ${e.line}:</b> ${e.reason}<br>
+                    <span style="color:#6b7280;font-size:10px;">${e.raw.substring(0,60)}${e.raw.length>60?'...':''}</span>
+                </div>`;
+            });
+        }
+        if (skipLines.length) {
+            detailHtml += `<p style="font-weight:800;color:#92400e;margin:6px 0 4px;">⏭ Skip (${skipLines.length}টি):</p>`;
+            skipLines.forEach(s => {
+                const label = s.raw.trim() ? `"${s.raw.trim().substring(0,50)}"` : '(খালি লাইন)';
+                detailHtml += `<div style="background:#fef9c3;border-radius:6px;padding:4px 8px;margin-bottom:3px;color:#78350f;font-size:10px;">Line ${s.line}: ${label}</div>`;
+            });
+        }
+        detailHtml += `</div><p style="margin-top:10px;"><b>${valid.length}টি বৈধ প্রশ্ন</b> পাঠানো হবে। চালিয়ে যাবেন?</p>`;
+        const cf = await Swal.fire({
+            title:`${errors.length}টি ত্রুটি · ${errors.length}টি skip`,
+            html:detailHtml, icon:'warning',
+            showCancelButton:true, confirmButtonText:'হ্যাঁ, পাঠাও', cancelButtonText:'না', width:'90%'
+        });
+        if (!cf.isConfirmed) return;
+    }
+
+    // ── Reset & show panel ──
+    bulkStopped = false;
+    failedItems = [];
+    document.getElementById('bulk-panel').classList.add('active');
+    document.getElementById('bulkRetryBtn').style.display  = 'none';
+    document.getElementById('bulk-progress-bar').style.width      = '0%';
+    document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#6366f1,#3b82f6,#10b981)';
+    document.getElementById('p-done').innerText   = 0;
+    document.getElementById('p-total').innerText  = valid.length;
+    document.getElementById('p-pct').innerText    = '0%';
+    document.getElementById('p-eta').innerText    = 'Timer';
+    document.getElementById('p-status-text').innerText = 'শুরু হচ্ছে...';
+    document.getElementById('bulk-log').innerHTML = '';
+    document.getElementById('bulk-log').style.display = 'block';
+    document.getElementById('bulkSendBtn').classList.add('btn-loading');
+    // নতুন elements reset
+    document.getElementById('bulk-complete-badge').style.display = 'none';
+    document.getElementById('panel-btns-running').style.display  = 'flex';
+    document.getElementById('panel-btns-failed').style.display   = 'none';
+
+    errors.forEach(e => appendLog(`✗ ত্রুটি (L${e.line}): ${e.reason}`, 'log-err'));
+
+    startBulkTimer();
+    await acquireWakeLock();
+
+    const { sent, failed, skipped } = await runUpload(valid, target, qtype, finalSub, newSub);
+
+    stopBulkTimer();
+    await releaseWakeLock();
+    finishUpload(sent, failed, skipped || 0, errors.length);
+    await updateQueueBadge();
+}
+
+/* ════════════════════════════════════════════
+   APP INIT — সব function define হওয়ার পর
+════════════════════════════════════════════ */
+
+// (vars already declared above)
+/* ════════════════════════════════════════════
+   PHASE 1 — SIGNUP NOTIFICATIONS
+════════════════════════════════════════════ */
+function startSignupPolling() {
+    checkNewSignups();
+    signupPollTimer = setInterval(checkNewSignups, 30000);
+}
+
+async function checkNewSignups() {
+    try {
+        const res  = await fetch(`${FIREBASE_URL}PendingSignups.json?auth=${FIREBASE_SK}`);
+        const data = await res.json();
+        let pending = 0;
+        if (data && typeof data === 'object') {
+            Object.values(data).forEach(v => { if (v && !v.approved && !v.rejected) pending++; });
+        }
+        updateSignupBadge(pending);
+    } catch(e) {}
+}
+
+function updateSignupBadge(count) {
+    const hBadge = document.getElementById('signup-badge');
+    const dtCount = document.getElementById('dt-signup-count');
+    const navBadge = document.getElementById('nav-signup-notif');
+    const bell = document.getElementById('signup-bell');
+    if (count > 0) {
+        if (hBadge) { hBadge.style.display = 'flex'; hBadge.innerText = count; }
+        if (dtCount) { dtCount.style.display = 'inline'; dtCount.innerText = count; }
+        if (navBadge) navBadge.classList.add('show');
+        if (bell) { bell.classList.add('bell-ring'); setTimeout(() => bell.classList.remove('bell-ring'), 700); }
+    } else {
+        if (hBadge) hBadge.style.display = 'none';
+        if (dtCount) dtCount.style.display = 'none';
+        if (navBadge) navBadge.classList.remove('show');
+    }
+    const panelCount = document.getElementById('signup-panel-count');
+    if (panelCount) panelCount.innerText = count > 0 ? `${count} জন অপেক্ষায়` : 'কেউ নেই';
+}
+
+async function loadSignups() {
+    const listEl = document.getElementById('signup-list');
+    const noEl   = document.getElementById('no-signups');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;"><i class="fas fa-circle-notch fa-spin" style="color:#7c3aed;font-size:20px;"></i></div>';
+    try {
+        const res  = await fetch(`${FIREBASE_URL}PendingSignups.json?auth=${FIREBASE_SK}`);
+        const data = await res.json();
+        signupData = [];
+        if (data && typeof data === 'object') {
+            Object.entries(data).forEach(([key, val]) => {
+                if (val && !val.approved && !val.rejected) signupData.push({ key, ...val });
+            });
+        }
+        signupData.sort((a,b) => (b.ts||0) - (a.ts||0));
+        renderSignups();
+        updateSignupBadge(signupData.length);
+    } catch(e) {
+        listEl.innerHTML = '<p style="text-align:center;padding:20px;font-size:12px;color:#94a3b8;font-weight:700;">লোড ব্যর্থ</p>';
+    }
+}
+
+function renderSignups() {
+    const listEl = document.getElementById('signup-list');
+    const noEl   = document.getElementById('no-signups');
+    if (!listEl) return;
+    if (!signupData.length) {
+        listEl.innerHTML = '';
+        if (noEl) noEl.style.display = 'block';
+        return;
+    }
+    if (noEl) noEl.style.display = 'none';
+    listEl.innerHTML = signupData.map((s, idx) => {
+        const name  = s.name  || s.Name  || '?';
+        const phone = s.phone || s.Phone || '';
+        const ts    = s.ts ? new Date(s.ts).toLocaleString('bn-BD') : s.time || '';
+        return `<div class="signup-card" id="scard-${idx}">
+            <div class="signup-card-header">
+                <div class="signup-avatar">${name.charAt(0)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:900;color:#1e1b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        <span class="signup-new-dot"></span>${name}
+                    </div>
+                    <div style="font-size:10px;color:#7c3aed;font-weight:700;">📱 ${phone}</div>
+                    ${s.classLevel ? `<div style="font-size:9px;color:#94a3b8;">${s.classLevel}</div>` : ''}
+                </div>
+                <div style="font-size:9px;color:#94a3b8;text-align:right;flex-shrink:0;">${ts}</div>
+            </div>
+            <div class="signup-card-footer">
+                <button onclick="approveSignup(${idx})" style="background:linear-gradient(135deg,#059669,#10b981);color:white;border:none;border-radius:12px;padding:10px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit;">✅ Approve</button>
+                <button onclick="rejectSignup(${idx})"  style="background:linear-gradient(135deg,#dc2626,#ef4444);color:white;border:none;border-radius:12px;padding:10px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit;">❌ Reject</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function approveSignup(idx) {
+    const s = signupData[idx];
+    if (!s) return;
+    const { isConfirmed } = await Swal.fire({ icon:'question', title:`${s.name||s.Name} কে Approve?`, text:`Phone: ${s.phone||s.Phone}`, showCancelButton:true, confirmButtonText:'✅ Approve', cancelButtonText:'বাতিল', confirmButtonColor:'#059669' });
+    if (!isConfirmed) return;
+    try {
+        const sp = (s.phone||s.Phone||'').toString().replace(/[.#$\[\]\s]/g,'_');
+        await fetch(`${FIREBASE_URL}PendingSignups/${s.key}/approved.json?auth=${FIREBASE_SK}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(true) });
+        await fetch(`${FIREBASE_URL}Users/${sp}.json?auth=${FIREBASE_SK}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ Name:s.name||s.Name||'', Phone:s.phone||s.Phone||'', Status:'Active', Role:'Student', XP:0, approvedAt:new Date().toISOString() }) });
+        await fetch(`${FIREBASE_URL}Notifications/${sp}/welcome.json?auth=${FIREBASE_SK}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:'welcome', title:'🎉 স্বাগতম Smart Study তে!', body:'তোমার account Approve হয়েছে। এখন login করো!', time:new Date().toLocaleString(), read:false }) });
+        playSuccess();
+        document.getElementById(`scard-${idx}`)?.remove();
+        signupData.splice(idx, 1);
+        updateSignupBadge(signupData.length);
+        if (!signupData.length) { const n=document.getElementById('no-signups'); if(n) n.style.display='block'; }
+        Swal.fire({ icon:'success', title:'✅ Approved!', toast:true, position:'top-end', timer:3000, showConfirmButton:false });
+    } catch(e) { Swal.fire({ icon:'error', title:'Error: '+e.message, toast:true, position:'top-end', timer:3000, showConfirmButton:false }); }
+}
+
+async function rejectSignup(idx) {
+    const s = signupData[idx];
+    if (!s) return;
+    const { isConfirmed } = await Swal.fire({ icon:'warning', title:`${s.name||s.Name} কে Reject?`, showCancelButton:true, confirmButtonText:'❌ Reject', cancelButtonText:'বাতিল', confirmButtonColor:'#dc2626' });
+    if (!isConfirmed) return;
+    try {
+        await fetch(`${FIREBASE_URL}PendingSignups/${s.key}.json?auth=${FIREBASE_SK}`, { method:'DELETE' });
+        document.getElementById(`scard-${idx}`)?.remove();
+        signupData.splice(idx, 1);
+        updateSignupBadge(signupData.length);
+        if (!signupData.length) { const n=document.getElementById('no-signups'); if(n) n.style.display='block'; }
+        Swal.fire({ icon:'info', title:'Rejected', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+    } catch(e) {}
+}
+
+/* ════════════════════════════════════════════
+   PHASE 2 — ANALYTICS
+════════════════════════════════════════════ */
+async function loadAnalytics() {
+    if (!usersData.length) await loadUsers();
+    renderAnalytics(usersData);
+    analyticsLoaded = true;
+}
+
+function renderAnalytics(users) {
+    if (!users.length) { document.getElementById('analytics-top-users').innerHTML='<p style="text-align:center;padding:20px;font-size:12px;color:#94a3b8;">কোনো student নেই</p>'; return; }
+    const top5 = [...users].sort((a,b) => parseInt(b.XP||b.xp||0)-parseInt(a.XP||a.xp||0)).slice(0,5);
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+    document.getElementById('analytics-top-users').innerHTML = top5.map((u,i) => {
+        const name=u.Name||u.name||'?', xp=parseInt(u.XP||u.xp||0), cor=u._totalCorrect||0, wrong=u._totalWrong||0;
+        const acc=(cor+wrong)>0?Math.round(cor/(cor+wrong)*100):0, maxXP=parseInt(top5[0].XP||top5[0].xp||1), pct=Math.round(xp/maxXP*100);
+        return `<div style="background:${i===0?'linear-gradient(135deg,#fef3c7,#fde68a)':i===1?'#f1f5f9':i===2?'linear-gradient(135deg,#fef3c7,#fed7aa)':'#f8faff'};border-radius:14px;padding:10px 12px;border:1px solid ${i===0?'#fcd34d':i===1?'#cbd5e1':i===2?'#fdba74':'#e2e8f0'};margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:20px;">${medals[i]}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                        <div style="flex:1;height:5px;background:rgba(0,0,0,0.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${i===0?'#f59e0b':i===1?'#94a3b8':i===2?'#fb923c':'#4f46e5'};border-radius:4px;"></div></div>
+                        <span style="font-size:10px;font-weight:900;color:#4f46e5;">⚡${xp.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;"><div style="font-size:12px;font-weight:900;color:#059669;">${acc}%</div><div style="font-size:8px;color:#94a3b8;">accuracy</div></div>
+            </div>
+        </div>`;
+    }).join('');
+    const buckets=[{label:'90–100%',min:90,max:100,color:'#059669'},{label:'70–89%',min:70,max:89,color:'#10b981'},{label:'50–69%',min:50,max:69,color:'#f59e0b'},{label:'30–49%',min:30,max:49,color:'#ef4444'},{label:'0–29%',min:0,max:29,color:'#dc2626'}];
+    const bCounts=buckets.map(b=>users.filter(u=>{const c=u._totalCorrect||0,w=u._totalWrong||0;if(c+w===0)return b.min===0;const a=Math.round(c/(c+w)*100);return a>=b.min&&a<=b.max;}).length);
+    const maxB=Math.max(...bCounts,1);
+    document.getElementById('analytics-accuracy').innerHTML=buckets.map((b,i)=>`<div class="accuracy-bar"><div class="accuracy-label">${b.label}</div><div class="accuracy-track"><div class="accuracy-fill" style="width:${Math.round(bCounts[i]/maxB*100)}%;background:${b.color};"></div></div><div class="accuracy-count">${bCounts[i]}</div></div>`).join('');
+    const xpB=[{label:'5000+ XP',min:5000,max:Infinity,color:'#7c3aed'},{label:'2000–4999',min:2000,max:4999,color:'#4f46e5'},{label:'1000–1999',min:1000,max:1999,color:'#6366f1'},{label:'500–999',min:500,max:999,color:'#818cf8'},{label:'0–499',min:0,max:499,color:'#c7d2fe'}];
+    const xpC=xpB.map(b=>users.filter(u=>{const x=parseInt(u.XP||u.xp||0);return x>=b.min&&x<=b.max;}).length);
+    const maxXB=Math.max(...xpC,1);
+    document.getElementById('analytics-xp-dist').innerHTML=xpB.map((b,i)=>`<div class="accuracy-bar"><div class="accuracy-label" style="font-size:10px;">${b.label}</div><div class="accuracy-track"><div class="accuracy-fill" style="width:${Math.round(xpC[i]/maxXB*100)}%;background:${b.color};"></div></div><div class="accuracy-count">${xpC[i]}</div></div>`).join('');
+    const withQ=users.filter(u=>(u._totalCorrect||0)+(u._totalWrong||0)>0);
+    const avgAcc=withQ.length?Math.round(withQ.reduce((s,u)=>{const c=u._totalCorrect||0,w=u._totalWrong||0;return s+(c/(c+w)*100);},0)/withQ.length):0;
+    const avgXP=users.length?Math.round(users.reduce((s,u)=>s+parseInt(u.XP||u.xp||0),0)/users.length):0;
+    const active=users.filter(u=>(u.Status||u.status||'').toLowerCase()==='active').length;
+    const totalQz=users.reduce((s,u)=>s+(u._totalQuizzes||0),0);
+    document.getElementById('avg-accuracy').innerText=avgAcc+'%';
+    document.getElementById('avg-xp').innerText=avgXP.toLocaleString();
+    document.getElementById('active-users').innerText=active;
+    document.getElementById('total-quizzes-done').innerText=totalQz.toLocaleString();
+}
+
+/* ════════════════════════════════════════════
+   PHASE 2 — CONTENT MANAGEMENT
+════════════════════════════════════════════ */
+function initContentPanel() {
+    const sel = document.getElementById('content-subject-select');
+    if (!sel) return;
+    const tab = document.getElementById('content-subject-tab')?.value || 'Quiz';
+    sel.innerHTML = '<option value="">-- বিষয় নির্বাচন --</option>';
+    (cachedSubjects[tab]||[]).forEach(s => { const o=document.createElement('option');o.value=s;o.innerText=s;sel.appendChild(o); });
+}
+
+async function contentFetchById() {
+    const id  = document.getElementById('content-search-id')?.value?.trim();
+    const tab = document.getElementById('content-search-tab')?.value || 'Quiz';
+    if (!id) return;
+    const resEl = document.getElementById('content-search-result');
+    if (resEl) { resEl.style.display='block'; resEl.innerHTML='<div style="text-align:center;padding:16px;"><i class="fas fa-circle-notch fa-spin" style="color:#3b82f6;"></i></div>'; }
+    try {
+        const res  = await fetch(`${SCRIPT_URL}?action=getById&id=${id}&tab=${tab}`);
+        const data = await res.json();
+        if (!data||data.error) { if(resEl) resEl.innerHTML=`<div style="text-align:center;padding:16px;font-size:12px;color:#ef4444;font-weight:700;">প্রশ্ন পাওয়া যায়নি #${id}</div>`; return; }
+        if (resEl) resEl.innerHTML = renderContentCard(data, id, tab);
+    } catch(e) { if(resEl) resEl.innerHTML='<div style="text-align:center;padding:16px;font-size:12px;color:#ef4444;font-weight:700;">Error — নেট চেক করুন</div>'; }
+}
+
+async function contentFetchBySubject() {
+    const subject = document.getElementById('content-subject-select')?.value;
+    const tab     = document.getElementById('content-subject-tab')?.value || 'Quiz';
+    if (!subject) { Swal.fire({icon:'warning',title:'বিষয় নির্বাচন করুন',toast:true,position:'top-end',timer:2000,showConfirmButton:false}); return; }
+    const listEl = document.getElementById('content-subject-list');
+    if (listEl) listEl.innerHTML='<div style="text-align:center;padding:20px;"><i class="fas fa-circle-notch fa-spin" style="color:#3b82f6;font-size:20px;"></i></div>';
+    try {
+        const res  = await fetch(`${SCRIPT_URL}?action=getBySubject&subject=${encodeURIComponent(subject)}&tab=${tab}`);
+        const data = await res.json();
+        const items = data.results||data.items||(Array.isArray(data)?data:[]);
+        if (!items.length) { if(listEl) listEl.innerHTML='<p style="text-align:center;padding:20px;font-size:12px;color:#94a3b8;font-weight:700;">কোনো প্রশ্ন পাওয়া যায়নি</p>'; return; }
+        if (listEl) listEl.innerHTML=`<div style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:8px;">${items.length}টি প্রশ্ন</div>`+items.map(item=>renderContentCard(item,item.id||item.ID,tab)).join('');
+    } catch(e) { if(listEl) listEl.innerHTML='<p style="text-align:center;padding:20px;font-size:12px;color:#ef4444;font-weight:700;">লোড ব্যর্থ</p>'; }
+}
+
+function renderContentCard(data, id, tab) {
+    const q=data.question||data.Question||'', subj=data.subject||data.Subject||'', type=data.qType||data.type||'MCQ', cor=data.correct||data.Correct||'';
+    return `<div class="content-q-card">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+            <span style="font-size:9px;font-weight:900;color:#4f46e5;background:#ede9fe;padding:2px 7px;border-radius:8px;">#${id}</span>
+            <span style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);color:#5b21b6;padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;">${subj}</span>
+            <span style="font-size:9px;background:#f0fdf4;color:#166534;border-radius:8px;padding:2px 7px;font-weight:800;">${type}</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#1e293b;line-height:1.5;margin-bottom:6px;">${q.substring(0,120)}${q.length>120?'...':''}</div>
+        ${cor?`<div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;">✅ ${cor}</div>`:''}
+        <div style="display:flex;gap:6px;">
+            <button onclick="contentEditQuestion('${id}','${tab}')" style="flex:1;background:linear-gradient(135deg,#4f46e5,#6366f1);color:white;border:none;border-radius:10px;padding:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-pen"></i> Edit</button>
+            <button onclick="contentDeleteQuestion('${id}','${tab}','${subj}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-trash"></i></button>
+        </div>
+    </div>`;
+}
+
+function contentEditQuestion(id, tab) {
+    switchPage('entry'); switchMode(tab);
+    setTimeout(() => { document.getElementById('search-box-container').classList.remove('hidden-box'); document.getElementById('search_id').value=id; fetchDataById(); }, 300);
+}
+
+async function contentDeleteQuestion(id, tab, subject) {
+    const {isConfirmed} = await Swal.fire({icon:'warning',title:`#${id} Delete করবেন?`,html:`Tab: <b>${tab}</b> | Subject: <b>${subject}</b><br><span style="color:#ef4444;font-size:11px;">পূর্বাবস্থায় ফেরানো যাবে না!</span>`,showCancelButton:true,confirmButtonText:'🗑 Delete',cancelButtonText:'বাতিল',confirmButtonColor:'#dc2626'});
+    if (!isConfirmed) return;
+    try {
+        const res=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'deleteQuestion',targetTab:tab,editId:id,subject})});
+        const data=await res.json();
+        if(data.success||data.result==='deleted'){Swal.fire({icon:'success',title:`#${id} Deleted`,toast:true,position:'top-end',timer:2000,showConfirmButton:false});event.target.closest('.content-q-card')?.remove();}
+        else Swal.fire({icon:'error',title:'Delete ব্যর্থ',text:data.error||'Unknown',toast:true,position:'top-end',timer:3000,showConfirmButton:false});
+    } catch(e){Swal.fire({icon:'error',title:'নেট সমস্যা',toast:true,position:'top-end',timer:2000,showConfirmButton:false});}
+}
+
+async function runDuplicateCheck() {
+    const resultEl=document.getElementById('duplicate-result');
+    resultEl.innerHTML='<div style="text-align:center;padding:20px;"><i class="fas fa-circle-notch fa-spin" style="color:#4f46e5;font-size:20px;"></i><p style="font-size:12px;color:#94a3b8;margin-top:8px;">স্ক্যান হচ্ছে...</p></div>';
+    try {
+        const res=await fetch(`${SCRIPT_URL}?action=findDuplicates`);
+        const data=await res.json();
+        const dupes=data.duplicates||data.results||[];
+        if(!dupes.length){resultEl.innerHTML='<div style="text-align:center;padding:20px;"><div style="font-size:32px;margin-bottom:8px;">✅</div><div style="font-size:12px;color:#059669;font-weight:800;">কোনো Duplicate নেই!</div></div>';}
+        else{resultEl.innerHTML=`<div style="margin-bottom:8px;font-size:11px;color:#ef4444;font-weight:800;">⚠️ ${dupes.length}টি পাওয়া গেছে:</div>`+dupes.map(d=>`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;padding:10px 12px;margin-bottom:6px;"><div style="font-size:10px;font-weight:800;color:#dc2626;">ID: ${d.ids?.join(', ')||d.id||'?'} — ${d.tab||''}</div><div style="font-size:11px;color:#7f1d1d;margin-top:4px;">${(d.question||'').substring(0,80)}...</div></div>`).join('');}
+    } catch(e){resultEl.innerHTML='<div style="text-align:center;padding:16px;font-size:12px;color:#ef4444;font-weight:700;">স্ক্যান ব্যর্থ</div>';}
+}
+
+/* ════════════════════════════════════════════
+   TECHNIQUE MANAGER
+════════════════════════════════════════════ */
+function tcAddTag(){const inp=document.getElementById('tc-tag-input'),val=inp.value.trim().replace(/,/g,'');if(!val)return;if(!tcCurrentTags.includes(val)){tcCurrentTags.push(val);tcRenderTags();}inp.value='';inp.focus();}
+function tcRemoveTag(tag){tcCurrentTags=tcCurrentTags.filter(t=>t!==tag);tcRenderTags();}
+function tcRenderTags(){const box=document.getElementById('tc-tags-box');if(!box)return;box.innerHTML=tcCurrentTags.map(t=>`<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.15);color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;">${t}<span onclick="tcRemoveTag('${t}')" style="cursor:pointer;opacity:0.7;font-size:12px;">✕</span></span>`).join('');}
+function tcClear(){
+    document.getElementById('tc-text').value='';
+    document.getElementById('tc-edit-id').value='';
+    tcCurrentTags=[];tcRenderTags();
+    const prev=document.getElementById('tc-img-preview');
+    const url=document.getElementById('tc-img-preview-url');
+    const status=document.getElementById('tc-img-status');
+    if(prev){prev.style.display='none';prev.src='';}
+    if(url) url.value='';
+    if(status) status.innerText='';
+}
+async function tcSave(){
+    const text=document.getElementById('tc-text').value.trim(),editId=document.getElementById('tc-edit-id').value;
+    if(!text){Swal.fire({icon:'warning',title:'টেকনিক লিখুন',toast:true,position:'top-end',timer:2000,showConfirmButton:false});return;}
+    try{
+        const key=editId||'tc_'+Date.now();
+        const imgUrl = document.getElementById('tc-img-preview-url')?.value || '';
+        const payload = {technique:text, tags:tcCurrentTags, image:imgUrl, ts:Date.now()};
+        await fetch(`${FIREBASE_URL}Techniques/${key}.json?auth=${FIREBASE_SK}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        // GAS sheet এও save করো (image URL সহ)
+        fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({
+            type:'save_technique',
+            technique:text,
+            tags:tcCurrentTags.join(','),
+            image:imgUrl,
+            editId:editId||'',
+            timestamp:new Date().toLocaleString()
+        })}).catch(()=>{});
+        Swal.fire({icon:'success',title:editId?'আপডেট হয়েছে!':'Save হয়েছে!',toast:true,position:'top-end',timer:2000,showConfirmButton:false});
+        tcClear();tcLoadAll();
+    }catch(e){Swal.fire({icon:'error',title:'Error',toast:true,position:'top-end',timer:2000,showConfirmButton:false});}
+}
+async function tcLoadAll(){
+    const el=document.getElementById('tc-gallery');
+    if(!el)return;
+    el.innerHTML='<p style="font-size:11px;color:#94a3b8;text-align:center;padding:20px;">লোড হচ্ছে...</p>';
+    try{
+        // GAS থেকে sync করো (sheet এর data আনার জন্য)
+        let items = [];
+        try {
+            const gasRes = await fetch(`${SCRIPT_URL}?action=getTechniques`);
+            const gasData = await gasRes.json();
+            if (gasData?.techniques?.length) {
+                // GAS থেকে এলো — Firebase তেও sync করো
+                items = gasData.techniques.map(t => ({
+                    id: t.id || 'tc_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+                    technique: t.technique || '',
+                    tags: t.tags ? t.tags.toString().split(',').map(s=>s.trim()).filter(Boolean) : [],
+                    image: t.image || '',
+                    ts: t.ts || 0
+                }));
+                // Firebase তে missing গুলো push করো
+                for (const t of items) {
+                    if (t.id && t.technique) {
+                        const key = t.id.toString().replace(/[^a-zA-Z0-9_]/g,'_');
+                        fetch(`${FIREBASE_URL}Techniques/${key}.json?auth=${FIREBASE_SK}`,{
+                            method:'PUT', headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({technique:t.technique, tags:t.tags, image:t.image||'', ts:t.ts||Date.now()})
+                        }).catch(()=>{});
+                        t.id = key;
+                    }
+                }
+            }
+        } catch(_){}
+
+        // Firebase থেকেও নাও (tc_ prefix এর নতুন entries)
+        const fbRes = await fetch(`${FIREBASE_URL}Techniques.json?auth=${FIREBASE_SK}`);
+        const fbData = await fbRes.json();
+        if (fbData && typeof fbData === 'object') {
+            // Array হলে (GAS sync করেছে)
+            if (Array.isArray(fbData)) {
+                const fbItems = fbData.filter(Boolean).map((v,i) => ({
+                    id: v.id || 'tc_fb_'+i,
+                    technique: v.Technique || v.technique || '',
+                    tags: v.Tags ? v.Tags.toString().split(',').map(s=>s.trim()).filter(Boolean) :
+                          (Array.isArray(v.tags) ? v.tags : []),
+                    image: v.image || '',
+                    ts: v.ts || 0
+                }));
+                // Merge — items এ না থাকলে যোগ করো
+                const existIds = new Set(items.map(t=>t.technique?.toLowerCase().trim().substring(0,50)));
+                fbItems.forEach(fi => {
+                    if (!existIds.has(fi.technique?.toLowerCase().trim().substring(0,50))) items.push(fi);
+                });
+            } else {
+                // Object হলে (tc_ prefix)
+                Object.entries(fbData).forEach(([k,v]) => {
+                    if (!v || typeof v !== 'object') return;
+                    const existIds = new Set(items.map(t=>t.technique?.toLowerCase().trim().substring(0,50)));
+                    const tech = v.technique || '';
+                    if (!existIds.has(tech.toLowerCase().trim().substring(0,50))) {
+                        items.push({ id:k, technique:tech, tags:Array.isArray(v.tags)?v.tags:[], image:v.image||'', ts:v.ts||0 });
+                    }
+                });
+            }
+        }
+
+        items.sort((a,b) => (b.ts||0) - (a.ts||0));
+        tcAllTechniques = items;
+        tcRenderGallery(tcAllTechniques);
+    }catch(e){el.innerHTML='<p style="font-size:11px;color:#94a3b8;text-align:center;padding:20px;">লোড ব্যর্থ — '+e.message+'</p>';}
+}
+function tcFilterGallery(){const q=document.getElementById('tc-gallery-search').value.toLowerCase().trim();tcRenderGallery(q?tcAllTechniques.filter(t=>(t.technique||'').toLowerCase().includes(q)||(t.tags||[]).some(tag=>tag.toLowerCase().includes(q))):tcAllTechniques);}
+function tcRenderGallery(items){
+    const el=document.getElementById('tc-gallery');if(!el)return;
+    if(!items.length){el.innerHTML='<p style="font-size:11px;color:#94a3b8;text-align:center;padding:20px;">কোনো টেকনিক নেই</p>';return;}
+    el.innerHTML=items.map(t=>`<div style="background:#f8faff;border:1.5px solid #e8edf5;border-radius:14px;padding:12px 13px;">
+        ${t.image?`<img src="${t.image}" style="width:100%;border-radius:10px;margin-bottom:8px;object-fit:cover;max-height:160px;" onclick="tcViewImg('${t.image}')" loading="lazy">`: ''}
+        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:7px;line-height:1.5;">${t.technique||''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">${(t.tags||[]).map(tag=>`<span style="background:#ede9fe;color:#5b21b6;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;">${tag}</span>`).join('')}</div>
+        <div style="display:flex;gap:6px;">
+            <button onclick="tcEdit('${t.id}')" style="flex:1;background:#4f46e5;color:white;border:none;border-radius:10px;padding:7px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-pen"></i> Edit</button>
+            <button onclick="tcDelete('${t.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:10px;padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;"><i class="fas fa-trash"></i></button>
+        </div>
+    </div>`).join('');
+}
+function tcViewImg(url){Swal.fire({imageUrl:url,imageAlt:'Technique Image',width:'95vw',showConfirmButton:false,showCloseButton:true});}
+function tcEdit(id){
+    const t=tcAllTechniques.find(x=>x.id===id);if(!t)return;
+    document.getElementById('tc-text').value=t.technique||'';
+    tcCurrentTags=[...(t.tags||[])];tcRenderTags();
+    document.getElementById('tc-edit-id').value=id;
+    const prev=document.getElementById('tc-img-preview');
+    const url=document.getElementById('tc-img-preview-url');
+    const status=document.getElementById('tc-img-status');
+    if(t.image){
+        if(prev){prev.src=t.image;prev.style.display='block';}
+        if(url) url.value=t.image;
+        if(status) status.innerText='✅';
+    } else {
+        if(prev){prev.style.display='none';prev.src='';}
+        if(url) url.value='';
+        if(status) status.innerText='';
+    }
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+async function tcDelete(id){
+    const{isConfirmed}=await Swal.fire({icon:'warning',title:'Delete করবেন?',showCancelButton:true,confirmButtonText:'হ্যাঁ',cancelButtonText:'না',confirmButtonColor:'#dc2626'});
+    if(!isConfirmed)return;
+    try{await fetch(`${FIREBASE_URL}Techniques/${id}.json?auth=${FIREBASE_SK}`,{method:'DELETE'});tcLoadAll();Swal.fire({icon:'success',title:'Deleted',toast:true,position:'top-end',timer:1500,showConfirmButton:false});}catch(e){}
+}
+
+async function loadDashboardFromFirebase() {
+    const [qR,qbR,sR,uR,rR] = await Promise.all([
+        fetch(`${FIREBASE_URL}Quiz.json?auth=${FIREBASE_SK}&shallow=true`),
+        fetch(`${FIREBASE_URL}QBank.json?auth=${FIREBASE_SK}&shallow=true`),
+        fetch(`${FIREBASE_URL}Study.json?auth=${FIREBASE_SK}&shallow=true`),
+        fetch(`${FIREBASE_URL}Users.json?auth=${FIREBASE_SK}&shallow=true`),
+        fetch(`${FIREBASE_URL}Reports.json?auth=${FIREBASE_SK}`)
+    ]);
+    const [qd,qbd,sd,ud,rd] = await Promise.all([qR.json(),qbR.json(),sR.json(),uR.json(),rR.json()]);
+    const mkMap = d => d ? { 'সব বিষয়': { total: Object.keys(d).length } } : {};
+    const reports = [];
+    if (rd && typeof rd === 'object') {
+        Object.entries(rd).forEach(([ph, rpts]) => {
+            if (rpts && typeof rpts === 'object')
+                Object.values(rpts).forEach(r => { if (r && !r.resolved) reports.push({...r, phone:ph}); });
+        });
+    }
+    return { quiz:mkMap(qd), qbank:mkMap(qbd), study:mkMap(sd), totalUsers:ud?Object.keys(ud).length:0, totalToday:parseInt(localStorage.getItem('admin_today_count')||'0'), reports };
+}
+
+
+/* ════════════════════════════════════════════
+   AUTO-DRAFT SYSTEM
+   — প্রতিটা keypress/change এ localStorage এ save
+   — App reload হলে draft detect করে restore offer করে
+   — Submit হলে draft clear হয়
+   — Mode (Quiz/Study/QBank) প্রতিটার আলাদা draft
+════════════════════════════════════════════ */
+let draftTimer = null;
+
+function getDraftKey() {
+    return 'draft_' + currentMode;
+}
+
+function saveDraft() {
+    if (currentMode === 'Bulk') return; // Bulk এ draft লাগবে না
+    const isQB = currentMode === 'QBank';
+    const draft = {
+        mode: currentMode,
+        qType: currentType,
+        subject:     document.getElementById(isQB ? 'qb_subject' : 'subject')?.value || '',
+        sub_topic:   document.getElementById(isQB ? 'qb_sub_topic' : 'sub_topic')?.value || '',
+        topic:       isQB ? (document.getElementById('topic')?.value || '') : '',
+        question:    document.getElementById('question')?.value || '',
+        opt1:        document.getElementById('opt1')?.value || '',
+        opt2:        document.getElementById('opt2')?.value || '',
+        opt3:        document.getElementById('opt3')?.value || '',
+        opt4:        document.getElementById('opt4')?.value || '',
+        correct:     document.getElementById('correct')?.value || '',
+        explanation: document.getElementById('explanation')?.value || '',
+        technique:   document.getElementById('technique')?.value || '',
+        showTech:    document.getElementById('showTechnique')?.checked || false,
+        audTags:     [...audCurrentTags],
+        ts:          Date.now()
+    };
+    // শুধু কিছু লেখা থাকলেই save করো
+    const hasContent = draft.question || draft.explanation || draft.correct;
+    if (hasContent) {
+        localStorage.setItem(getDraftKey(), JSON.stringify(draft));
+    }
+}
+
+function draftChanged() {
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(saveDraft, 800); // ০.৮ সেকেন্ড idle হলে save
+}
+
+function clearDraft(mode) {
+    localStorage.removeItem('draft_' + (mode || currentMode));
+}
+
+function restoreDraft(draft) {
+    if (!draft) return;
+    // mode switch
+    if (draft.mode && draft.mode !== currentMode) switchMode(draft.mode);
+
+    const isQB = draft.mode === 'QBank';
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+
+    setVal(isQB ? 'qb_subject' : 'subject', draft.subject);
+    setVal(isQB ? 'qb_sub_topic' : 'sub_topic', draft.sub_topic);
+    if (isQB) setVal('topic', draft.topic);
+    setVal('question', draft.question);
+    setVal('opt1', draft.opt1);
+    setVal('opt2', draft.opt2);
+    setVal('opt3', draft.opt3);
+    setVal('opt4', draft.opt4);
+    setVal('correct', draft.correct);
+    setVal('explanation', draft.explanation);
+    setVal('technique', draft.technique);
+
+    if (draft.showTech) {
+        document.getElementById('showTechnique').checked = true;
+        toggleTech(true);
+    }
+    if (draft.audTags?.length) {
+        audCurrentTags = [...draft.audTags];
+        audRenderTags();
+    }
+    if (draft.qType) setQuestionType(draft.qType);
+    updatePreview(draft.question || draft.explanation || '');
+
+    // Subject dropdown এ value set — option না থাকলে add করো
+    const selId = isQB ? 'qb_subject' : 'subject';
+    const selEl = document.getElementById(selId);
+    if (selEl && draft.subject) {
+        const exists = [...selEl.options].some(o => o.value === draft.subject);
+        if (!exists) selEl.add(new Option(draft.subject, draft.subject));
+        selEl.value = draft.subject;
+    }
+}
+
+function timeAgo(ts) {
+    const sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 60) return sec + ' সেকেন্ড আগে';
+    if (sec < 3600) return Math.floor(sec/60) + ' মিনিট আগে';
+    return Math.floor(sec/3600) + ' ঘণ্টা আগে';
+}
+
+function checkAndOfferDraft() {
+    // সব mode এর draft চেক করো
+    const modes = ['Quiz', 'Study', 'QBank'];
+    const drafts = modes.map(m => {
+        const raw = localStorage.getItem('draft_' + m);
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch(_) { return null; }
+    }).filter(Boolean);
+
+    if (!drafts.length) return;
+
+    // সবচেয়ে recent draft
+    const latest = drafts.sort((a,b) => b.ts - a.ts)[0];
+    const preview = (latest.question || latest.explanation || '').substring(0, 60);
+
+    Swal.fire({
+        icon: 'info',
+        title: '📝 Draft পাওয়া গেছে!',
+        html: `<div style="font-size:13px;text-align:left;">
+            <div style="background:#f1f5f9;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px;color:#475569;">
+                <b>${latest.mode}</b> — ${timeAgo(latest.ts)}<br>
+                <span style="color:#1e293b;">${preview}${preview.length>=60?'...':''}</span>
+            </div>
+            <p style="color:#64748b;font-size:11px;">Reload এর আগের লেখা ফিরিয়ে আনবেন?</p>
+        </div>`,
+        showCancelButton: true,
+        confirmButtonText: '✅ Restore করো',
+        cancelButtonText: '🗑️ বাদ দাও',
+        confirmButtonColor: '#4f46e5',
+        cancelButtonColor: '#94a3b8',
+        allowOutsideClick: false
+    }).then(result => {
+        if (result.isConfirmed) {
+            restoreDraft(latest);
+            Swal.fire({ icon:'success', title:'Draft restore হয়েছে!', toast:true, position:'top-end', timer:1500, showConfirmButton:false });
+        } else {
+            // সব draft clear
+            modes.forEach(m => clearDraft(m));
+        }
+    });
+}
+
+function offerRestoreCurrentMode() {
+    const raw = localStorage.getItem('draft_' + currentMode);
+    if (!raw) return;
+    try {
+        const draft = JSON.parse(raw);
+        const preview = (draft.question || draft.explanation || '').substring(0, 80);
+        Swal.fire({
+            icon: 'info',
+            title: '📝 Draft Restore',
+            html: `<div style="background:#f1f5f9;border-radius:10px;padding:10px;font-size:12px;text-align:left;color:#1e293b;">
+                <b>${draft.mode}</b> — ${timeAgo(draft.ts)}<br>
+                <span style="color:#475569;">${preview}${preview.length>=80?'...':''}</span>
+            </div>`,
+            showCancelButton: true,
+            confirmButtonText: '✅ Restore',
+            cancelButtonText: '🗑️ Delete',
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#dc2626'
+        }).then(r => {
+            if (r.isConfirmed) {
+                restoreDraft(draft);
+                document.getElementById('draft-indicator').style.display = 'none';
+                Swal.fire({ icon:'success', title:'Restored!', toast:true, position:'top-end', timer:1200, showConfirmButton:false });
+            } else if (r.dismiss === Swal.DismissReason.cancel) {
+                clearDraft(currentMode);
+                document.getElementById('draft-indicator').style.display = 'none';
+            }
+        });
+    } catch(_) {}
+}
+
+function attachDraftListeners() {
+    const watchIds = ['question','opt1','opt2','opt3','opt4','correct','explanation','technique',
+                      'subject','sub_topic','qb_subject','qb_sub_topic','topic'];
+    watchIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input',  draftChanged);
+            el.addEventListener('change', draftChanged);
+        }
+    });
+}
+
+function appInit() {
+    const savedLastId = localStorage.getItem('last_added_id');
+    if (savedLastId) document.getElementById('lastAddedId').innerText = savedLastId;
+    startSignupPolling();
+
+    loadSubjectSuggestions();
+    registerSW();
+    updateOnlineStatus();
+    updateQueueBadge();
+    checkLastBulkResult();
+
+    // প্রথমে Entry Quiz tab
+    switchPage('entry');
+    switchMode('Quiz');
+
+    // Draft listeners attach করো
+    attachDraftListeners();
+    // ১.৫ সেকেন্ড পর draft check করো (subject list load হওয়ার পর)
+    setTimeout(checkAndOfferDraft, 1500);
+
+    // Background এ data prefetch
+    setTimeout(() => {
+        setTimeout(() => loadUsers(false), 600);
+    }, 200);
+}
+
+// DOM ready হলে init করো
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', appInit);
+} else {
+    appInit();
+}
+
+
+</script>
+</body>
+</html>
