@@ -3,10 +3,7 @@ package com.hanif.smartadminentry.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.os.Bundle
-import android.widget.Button
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
 class CrashActivity : AppCompatActivity() {
@@ -24,23 +21,22 @@ class CrashActivity : AppCompatActivity() {
             isTextSelectable = true
         }
 
-        val btn = Button(this).apply {
+        val copyBtn = Button(this).apply {
             text = "📋 Copy Error"
             setOnClickListener {
-                val clip = ClipboardManager::class.java
                 val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("crash", msg))
                 Toast.makeText(this@CrashActivity, "Copied!", Toast.LENGTH_SHORT).show()
             }
         }
 
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF1A1A1A.toInt())
-            addView(btn)
+            addView(copyBtn)
             addView(ScrollView(this@CrashActivity).apply { addView(tv) })
         }
 
-        setContentView(layout)
+        setContentView(root)
     }
 }
