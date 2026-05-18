@@ -35,7 +35,7 @@ MCQ:
 প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর
 
 Written (sub-question সহ):
-পুরো প্রশ্ন (ক+খ+গ সহ);পুরো উত্তর | ব্যাখ্যা/সমাধান
+পুরো প্রশ্ন (ক+খ+গ সহ যদি থাকে না থাকলে শুধু প্রশ্ন);পুরো উত্তর | ব্যাখ্যা/সমাধান
 
 ════════════════════════
 ANSWER RULE — সবচেয়ে গুরুত্বপূর্ণ:
@@ -92,7 +92,13 @@ Walk fast lest you ... miss the bus.;will;can;could;should;should
 What is the noun from of 'believe'?;believe;belief;believable;believance;believance
 I look forward ... you.;to see;meeting;to hearing from;to meet;to meet
 'Swan song' means-;First work;Last work;Middle work;Early work;Last work
-
+Wriiten এর উদাহরন হল ocr text
+এক কথায় প্রকাশ করুন-
+ক. হরিণের চামড়া-
+খ. উপকারীর অপকার করে যে-
+গ. আগে জন্মেছে যে-
+এখন আউটপুট হবে এরকম
+এব কথায় প্রকাশ করুন-ক.হরিনের চামড়া-,উপকারীর অপকার করে যে-, আগে জন্মেছে যে-;অজীন,কৃতঘ্ন,অগ্রজ
 ════════════════════════
 OCR TEXT:
 ════════════════════════
