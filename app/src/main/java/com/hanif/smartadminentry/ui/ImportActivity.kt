@@ -53,9 +53,9 @@ class ImportActivity : AppCompatActivity() {
         try {
             binding = ActivityImportBinding.inflate(layoutInflater)
             setContentView(binding.root)
-            setSupportActionBar(binding.toolbar)
-            supportActionBar?.setDisplayHomeAsUpEnabled(true)
-            supportActionBar?.title = "AI Import"
+            binding.toolbar.title = "📸 AI Import"
+            binding.toolbar.setNavigationIcon(android.R.drawable.ic_menu_close_clear_cancel)
+            binding.toolbar.setNavigationOnClickListener { finish() }
             setupUI()
         } catch (e: Exception) {
             toast("Init error: ${e.message}")
@@ -83,6 +83,7 @@ class ImportActivity : AppCompatActivity() {
 
             binding.btnRunOcr.setOnClickListener { runOcrAll() }
             binding.btnRunAi.setOnClickListener { runAiOnOcr() }
+            binding.btnCopyPrompt.setOnClickListener { copyPromptWithOcr() }
             binding.btnSendToBulk.setOnClickListener { sendToBulk() }
             binding.btnEditOcr.setOnClickListener { showOcrEditDialog() }
 
@@ -314,6 +315,36 @@ class ImportActivity : AppCompatActivity() {
     private fun hideProgress() {
         binding.progressBar.visibility = View.GONE
         binding.tvProgress.visibility  = View.GONE
+    }
+
+    private fun copyPromptWithOcr() {
+        val ocrText = binding.tvOcrResult.text.toString().trim()
+        if (ocrText.isBlank()) { toast("আগে OCR চালান"); return }
+        val sheet    = binding.spinnerSheet.selectedItem?.toString() ?: "Quiz"
+        val subject  = binding.etSubject.text.toString().trim()
+        val subTopic = binding.etSubTopic.text.toString().trim()
+        val prompt = buildString {
+            append("তুমি একটি পরীক্ষার প্রশ্নপত্র formatter।\n")
+            append("Subject: ${subject.ifBlank{"-"}} | Sub-Topic: ${subTopic.ifBlank{"-"}} | Sheet: $sheet\n\n")
+            append("নিচের OCR text থেকে প্রশ্ন বের করে এই format এ দাও:\n")
+            append("MCQ: প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর\n")
+            append("Written: প্রশ্ন;উত্তর;ব্যাখ্যা\n\n")
+            append("RULES:\n")
+            append("১. প্রতিটি প্রশ্ন আলাদা line এ\n")
+            append("২. Serial number বাদ দাও\n")
+            append("৩. field এর ভেতরে ; ব্যবহার করো না\n")
+            append("৪. উত্তর = option এর আসল text (ক/খ নয়)\n")
+            append("৫. গণিত: ভগ্নাংশ \$\\frac{a}{b}\$, ঘাত \$x^{2}\$, ∴ △ ∠ × চিহ্ন ব্যবহার করো\n")
+            append("৬. Page number, footer, reference বাদ দাও\n\n")
+            append("উদাহরণ output:\n")
+            append("Slow and steady wins the race.;wins;lose;run;win;wins\n")
+            append("বাংলাদেশের রাজধানী কোথায়?;ঢাকা;চট্টগ্রাম;খুলনা;রাজশাহী;ঢাকা\n\n")
+            append("=== OCR TEXT ===\n")
+            append(ocrText)
+        }
+        val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("prompt", prompt))
+        toast("✅ Prompt+OCR copied! Gemini এ paste করুন → result copy করে Bulk এ দিন")
     }
 
     private fun toast(msg: String) =
