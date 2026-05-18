@@ -327,8 +327,8 @@ class ImportActivity : AppCompatActivity() {
             append("তুমি একটি পরীক্ষার প্রশ্নপত্র formatter।\n")
             append("Subject: ${subject.ifBlank{"-"}} | Sub-Topic: ${subTopic.ifBlank{"-"}} | Sheet: $sheet\n\n")
             append("নিচের OCR text থেকে প্রশ্ন বের করে এই format এ দাও:\n")
-            append("MCQ: প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর\n")
-            append("Written: প্রশ্ন;উত্তর;ব্যাখ্যা\n\n")
+            append("MCQ এর ফরমেট হবে-   প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর\n")
+            append("Written এর ফরমেট হবে-   প্রশ্ন;উত্তর;ব্যাখ্যা\n\n")
             append("RULES:\n")
             append("১. প্রতিটি প্রশ্ন আলাদা line এ\n")
             append("২. Serial number বাদ দাও\n")
@@ -339,6 +339,7 @@ class ImportActivity : AppCompatActivity() {
             append("উদাহরণ output:\n")
             append("Slow and steady wins the race.;wins;lose;run;win;wins\n")
             append("বাংলাদেশের রাজধানী কোথায়?;ঢাকা;চট্টগ্রাম;খুলনা;রাজশাহী;ঢাকা\n\n")
+            append("Wriiten এর উদাহরন হল এক কথায় প্রকাশ করুন- ক. হরিণের চামড়া- খ. উপকারীর অপকার করে যে- গ. আগে জন্মেছে যে- এখন আউটপুট হবে এরকম এক কথায় প্রকাশ করুন-ক.হরিনের চামড়া-,উপকারীর অপকার করে যে-, আগে জন্মেছে যে-;অজীন,কৃতঘ্ন,অগ্রজ\n\n"
             append("=== OCR TEXT ===\n")
             append(ocrText)
         }
