@@ -225,13 +225,24 @@
                         android:id="@+id/btn_run_ai"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:text="Step 2: AI দিয়ে Format করো"
+                        android:text="Step 2: AI দিয়ে Format করো (Auto)"
                         android:backgroundTint="#4F46E5"
                         android:textColor="#FFFFFF"
                         android:textSize="12sp"
                         android:layout_marginBottom="6dp"
                         android:enabled="false"
                         android:alpha="0.4"
+                        style="@style/Widget.MaterialComponents.Button"/>
+
+                    <Button
+                        android:id="@+id/btn_copy_prompt"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="📋 Prompt+OCR Copy করো (Manual)"
+                        android:backgroundTint="#0F172A"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:layout_marginBottom="6dp"
                         style="@style/Widget.MaterialComponents.Button"/>
 
                     <Button
