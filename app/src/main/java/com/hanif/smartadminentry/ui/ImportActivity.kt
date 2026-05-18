@@ -2,10 +2,8 @@ package com.hanif.smartadminentry.ui
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,70 +27,79 @@ class ImportActivity : AppCompatActivity() {
     private var isProcessing = false
     private var processingJob: Job? = null
 
-    // Gallery picker — multiple images
     private val galleryPicker = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
-    ) { uris -> if (uris.isNotEmpty()) addImages(uris) }
+    ) { uris ->
+        try {
+            if (uris.isNotEmpty()) addImages(uris)
+        } catch (e: Exception) {
+            toast("Gallery error: ${e.message}")
+        }
+    }
 
-    // Camera — single photo via system camera
     private var cameraUri: Uri? = null
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) {
-            cameraUri?.let { addImages(listOf(it)) }
+        try {
+            if (success && cameraUri != null) addImages(listOf(cameraUri!!))
+        } catch (e: Exception) {
+            toast("Camera error: ${e.message}")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityImportBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.apply {
-            setDisplayHomeAsUpEnabled(true)
-            title = "📸 AI Import"
+        try {
+            binding = ActivityImportBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            setSupportActionBar(binding.toolbar)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            supportActionBar?.title = "AI Import"
+            setupUI()
+        } catch (e: Exception) {
+            toast("Init error: ${e.message}")
         }
-        setupUI()
     }
 
     private fun setupUI() {
-        binding.btnCamera.setOnClickListener { openCamera() }
-        binding.btnGallery.setOnClickListener { galleryPicker.launch("image/*") }
-        binding.btnClearImages.setOnClickListener { clearAll() }
+        try {
+            binding.btnCamera.setOnClickListener {
+                try { openCamera() } catch (e: Exception) { toast("Cam: ${e.message}") }
+            }
+            binding.btnGallery.setOnClickListener {
+                try { galleryPicker.launch("image/*") } catch (e: Exception) { toast("Gallery: ${e.message}") }
+            }
+            binding.btnClearImages.setOnClickListener { clearAll() }
 
-        // Sheet spinner
-        binding.spinnerSheet.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item,
-            listOf("Quiz", "QBank", "Study")
-        )
-        val idx = listOf("Quiz","QBank","Study").indexOf(AppPrefs.defaultSheet)
-        if (idx >= 0) binding.spinnerSheet.setSelection(idx)
+            val sheets = listOf("Quiz", "QBank", "Study")
+            binding.spinnerSheet.adapter = ArrayAdapter(this,
+                android.R.layout.simple_spinner_dropdown_item, sheets)
+            val idx = sheets.indexOf(AppPrefs.defaultSheet)
+            if (idx >= 0) binding.spinnerSheet.setSelection(idx)
 
-        binding.etSubject.setText(AppPrefs.defaultSubject)
-        binding.etSubTopic.setText(AppPrefs.defaultSubTopic)
+            binding.etSubject.setText(AppPrefs.defaultSubject)
+            binding.etSubTopic.setText(AppPrefs.defaultSubTopic)
 
-        binding.btnRunOcr.setOnClickListener { runOcrAll() }
-        binding.btnRunAi.setOnClickListener { runAiOnOcr() }
-        binding.btnSendToBulk.setOnClickListener { sendToBulk() }
-        binding.btnEditOcr.setOnClickListener { showOcrEditDialog() }
+            binding.btnRunOcr.setOnClickListener { runOcrAll() }
+            binding.btnRunAi.setOnClickListener { runAiOnOcr() }
+            binding.btnSendToBulk.setOnClickListener { sendToBulk() }
+            binding.btnEditOcr.setOnClickListener { showOcrEditDialog() }
 
-        setStep(0)
-        updateImageCount()
+            setStep(0)
+            updateImageCount()
+        } catch (e: Exception) {
+            toast("UI error: ${e.message}")
+        }
     }
 
-    // ── Camera via system intent ──────────────────────────────────────────────
     private fun openCamera() {
-        try {
-            val file = java.io.File(cacheDir, "cam_${System.currentTimeMillis()}.jpg")
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                this, "${packageName}.provider", file
-            )
-            cameraUri = uri
-            cameraLauncher.launch(uri)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Camera error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        val file = java.io.File(cacheDir, "img_${System.currentTimeMillis()}.jpg")
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            this, "${packageName}.provider", file
+        )
+        cameraUri = uri
+        cameraLauncher.launch(uri)
     }
 
     private fun addImages(uris: List<Uri>) {
@@ -103,176 +110,199 @@ class ImportActivity : AppCompatActivity() {
     }
 
     private fun clearAll() {
-        images.clear(); parsedQuestions.clear(); allOcrText.clear()
+        images.clear()
+        parsedQuestions.clear()
+        allOcrText.clear()
         binding.tvOcrResult.text = ""
         binding.tvParsedCount.text = ""
         binding.layoutOcrResult.visibility = View.GONE
         binding.layoutParsed.visibility = View.GONE
-        renderImageGrid(); updateImageCount(); setStep(0)
+        renderImageGrid()
+        updateImageCount()
+        setStep(0)
     }
 
     private fun updateImageCount() {
         binding.tvImageCount.text =
-            if (images.isEmpty()) "কোনো ছবি নেই" else "${images.size} টি ছবি যোগ হয়েছে"
+            if (images.isEmpty()) "কোনো ছবি নেই"
+            else "${images.size} টি ছবি"
         binding.btnRunOcr.isEnabled = images.isNotEmpty() && !isProcessing
         binding.btnClearImages.isEnabled = images.isNotEmpty()
     }
 
     private fun renderImageGrid() {
-        binding.imageGrid.removeAllViews()
-        val dp = (48 * resources.displayMetrics.density).toInt()
-        images.forEachIndexed { idx, img ->
-            val iv = ImageView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp, dp).apply {
-                    marginEnd = (4 * resources.displayMetrics.density).toInt()
+        try {
+            binding.imageGrid.removeAllViews()
+            val dp = (50 * resources.displayMetrics.density).toInt()
+            images.forEachIndexed { idx, img ->
+                val iv = ImageView(this)
+                iv.layoutParams = LinearLayout.LayoutParams(dp, dp).also { it.marginEnd = 6 }
+                iv.scaleType = ImageView.ScaleType.CENTER_CROP
+                iv.setBackgroundColor(0xFFCCCCCC.toInt())
+                try {
+                    val bmp = OcrProcessor.loadBitmap(this, img.uri)
+                    if (bmp != null) iv.setImageBitmap(bmp)
+                } catch (_: Exception) {}
+                iv.setOnLongClickListener {
+                    images.removeAt(idx)
+                    renderImageGrid()
+                    updateImageCount()
+                    true
                 }
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                setBackgroundColor(Color.parseColor("#E8EDF5"))
+                binding.imageGrid.addView(iv)
             }
-            try {
-                val bmp = OcrProcessor.loadBitmap(this, img.uri)
-                if (bmp != null) iv.setImageBitmap(bmp)
-                else iv.setBackgroundColor(Color.LTGRAY)
-            } catch (_: Exception) { iv.setBackgroundColor(Color.LTGRAY) }
-            iv.setOnLongClickListener { images.removeAt(idx); renderImageGrid(); updateImageCount(); true }
-            binding.imageGrid.addView(iv)
+        } catch (e: Exception) {
+            toast("Grid error: ${e.message}")
         }
     }
 
-    // ── STEP 1: OCR ───────────────────────────────────────────────────────────
     private fun runOcrAll() {
         if (images.isEmpty()) return
-        isProcessing = true; allOcrText.clear()
-        showProgress("OCR চলছে... 0/${images.size}")
+        isProcessing = true
+        allOcrText.clear()
+        showProgress("OCR চলছে...")
         binding.btnRunOcr.isEnabled = false
 
         processingJob = lifecycleScope.launch {
             images.forEachIndexed { idx, img ->
-                showProgress("OCR চলছে... ${idx+1}/${images.size}")
-                img.status = ImportImage.Status.OCR_RUNNING
+                showProgress("OCR: ${idx + 1}/${images.size}")
                 try {
                     val text = OcrProcessor.processImage(this@ImportActivity, img.uri)
                     img.ocrText = text
                     img.status = ImportImage.Status.OCR_DONE
-                    allOcrText.append("--- ছবি ${idx+1} ---\n$text\n\n")
+                    allOcrText.append("--- ছবি ${idx + 1} ---\n$text\n\n")
                 } catch (e: Exception) {
                     img.status = ImportImage.Status.ERROR
-                    img.errorMsg = e.message ?: "Error"
+                    allOcrText.append("--- ছবি ${idx + 1} ERROR: ${e.message} ---\n\n")
                 }
             }
             val combined = allOcrText.toString().trim()
             binding.tvOcrResult.text = combined
-            binding.tvOcrStats.text = "${combined.length} chars | ${combined.lines().size} lines"
+            binding.tvOcrStats.text = "${combined.length} chars"
             binding.layoutOcrResult.visibility = View.VISIBLE
-            hideProgress(); isProcessing = false
+            hideProgress()
+            isProcessing = false
             binding.btnRunOcr.isEnabled = true
             setStep(2)
-            Toast.makeText(this@ImportActivity, "✅ OCR সম্পন্ন!", Toast.LENGTH_SHORT).show()
+            toast("✅ OCR সম্পন্ন!")
         }
     }
 
-    // ── STEP 2: AI ────────────────────────────────────────────────────────────
     private fun runAiOnOcr() {
         val ocrText = binding.tvOcrResult.text.toString().trim()
-        if (ocrText.isBlank()) { Toast.makeText(this, "আগে OCR চালান", Toast.LENGTH_SHORT).show(); return }
+        if (ocrText.isBlank()) { toast("আগে OCR চালান"); return }
         val apiKey = AppPrefs.geminiApiKey
         if (apiKey.isBlank()) { showApiKeyDialog(); return }
 
-        val sheet    = binding.spinnerSheet.selectedItem.toString()
+        val sheet    = binding.spinnerSheet.selectedItem?.toString() ?: "Quiz"
         val subject  = binding.etSubject.text.toString().trim()
         val subTopic = binding.etSubTopic.text.toString().trim()
-        AppPrefs.defaultSubject = subject
+        AppPrefs.defaultSubject  = subject
         AppPrefs.defaultSubTopic = subTopic
-        AppPrefs.defaultSheet = sheet
+        AppPrefs.defaultSheet    = sheet
 
-        isProcessing = true; showProgress("Gemini AI format করছে...")
+        isProcessing = true
+        showProgress("Gemini AI চলছে...")
         binding.btnRunAi.isEnabled = false
 
         lifecycleScope.launch {
-            val result = GeminiProcessor.process(apiKey, ocrText, sheet, subject, subTopic)
-            isProcessing = false; binding.btnRunAi.isEnabled = true; hideProgress()
-            when (result) {
-                is GeminiProcessor.GeminiResult.Success -> {
-                    parsedQuestions.clear()
-                    result.lines.forEach { parsedQuestions.add(ParsedQuestion.parse(it)) }
-                    showParsedPreview(); setStep(3)
+            try {
+                val result = GeminiProcessor.process(apiKey, ocrText, sheet, subject, subTopic)
+                isProcessing = false
+                binding.btnRunAi.isEnabled = true
+                hideProgress()
+                when (result) {
+                    is GeminiProcessor.GeminiResult.Success -> {
+                        parsedQuestions.clear()
+                        result.lines.forEach { parsedQuestions.add(ParsedQuestion.parse(it)) }
+                        showParsedPreview()
+                        setStep(3)
+                    }
+                    is GeminiProcessor.GeminiResult.Error ->
+                        toast("❌ ${result.message}")
                 }
-                is GeminiProcessor.GeminiResult.Error ->
-                    Toast.makeText(this@ImportActivity, "❌ ${result.message}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                isProcessing = false
+                binding.btnRunAi.isEnabled = true
+                hideProgress()
+                toast("AI error: ${e.message}")
             }
         }
     }
 
     private fun showParsedPreview() {
-        binding.tvParsedCount.text = "${parsedQuestions.size} টি প্রশ্ন পাওয়া গেছে"
+        binding.tvParsedCount.text = "${parsedQuestions.size} টি প্রশ্ন"
         val mcq = parsedQuestions.count { it.qType == "MCQ" }
         val wr  = parsedQuestions.count { it.qType == "Written" }
         binding.tvParsedBreakdown.text = "MCQ: $mcq | Written: $wr"
         binding.layoutParsed.visibility = View.VISIBLE
         val sb = StringBuilder()
-        parsedQuestions.forEachIndexed { i, q ->
-            sb.append("${i+1}. [${q.qType}] ${q.question.take(70)}")
-            if (q.question.length > 70) sb.append("...")
-            if (q.opt1.isNotBlank()) sb.append("\n   ক. ${q.opt1.take(35)}")
-            if (q.correct.isNotBlank()) sb.append("\n   ✅ ${q.correct.take(40)}")
-            sb.append("\n\n")
+        parsedQuestions.take(10).forEachIndexed { i, q ->
+            sb.append("${i + 1}. ${q.question.take(60)}\n")
+            if (q.correct.isNotBlank()) sb.append("   ✅ ${q.correct.take(40)}\n")
+            sb.append("\n")
         }
+        if (parsedQuestions.size > 10) sb.append("... আরো ${parsedQuestions.size - 10} টি")
         binding.tvParsedPreview.text = sb.toString()
     }
 
     private fun showOcrEditDialog() {
-        val et = EditText(this).apply {
-            setText(binding.tvOcrResult.text)
-            textSize = 12f; setPadding(24,16,24,16); minLines = 10
-            gravity = android.view.Gravity.TOP
-        }
+        val et = EditText(this)
+        et.setText(binding.tvOcrResult.text)
+        et.textSize = 12f
+        et.setPadding(24, 16, 24, 16)
+        et.minLines = 8
+        et.gravity = android.view.Gravity.TOP
         AlertDialog.Builder(this)
-            .setTitle("OCR Text Edit করুন")
+            .setTitle("OCR Edit")
             .setView(ScrollView(this).apply { addView(et) })
-            .setPositiveButton("Save") { _,_ ->
-                allOcrText.clear(); allOcrText.append(et.text.toString())
+            .setPositiveButton("Save") { _, _ ->
+                allOcrText.clear()
+                allOcrText.append(et.text.toString())
                 binding.tvOcrResult.text = et.text.toString()
             }
-            .setNegativeButton("Cancel", null).show()
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
-    // ── STEP 3: Send ─────────────────────────────────────────────────────────
     private fun sendToBulk() {
         val text = if (parsedQuestions.isNotEmpty())
             parsedQuestions.joinToString("\n") { it.editedRaw }
-        else binding.tvOcrResult.text.toString().trim()
+        else
+            binding.tvOcrResult.text.toString().trim()
 
-        if (text.isBlank()) { Toast.makeText(this, "কোনো প্রশ্ন নেই", Toast.LENGTH_SHORT).show(); return }
+        if (text.isBlank()) { toast("কোনো data নেই"); return }
 
-        val intent = Intent().apply {
+        setResult(Activity.RESULT_OK, Intent().apply {
             putExtra("bulk_text",    text)
-            putExtra("target_sheet", binding.spinnerSheet.selectedItem.toString())
+            putExtra("target_sheet", binding.spinnerSheet.selectedItem?.toString() ?: "Quiz")
             putExtra("subject",      binding.etSubject.text.toString().trim())
             putExtra("sub_topic",    binding.etSubTopic.text.toString().trim())
-        }
-        setResult(Activity.RESULT_OK, intent); finish()
+        })
+        finish()
     }
 
     private fun showApiKeyDialog() {
-        val et = EditText(this).apply { hint = "AIza..."; setPadding(32,24,32,24) }
+        val et = EditText(this)
+        et.hint = "AIza..."
+        et.setPadding(32, 24, 32, 24)
         AlertDialog.Builder(this)
-            .setTitle("🔑 Gemini API Key")
-            .setMessage("Settings থেকে বা এখানে দিন।")
+            .setTitle("Gemini API Key")
             .setView(et)
-            .setPositiveButton("Save") { _,_ ->
+            .setPositiveButton("Save") { _, _ ->
                 val k = et.text.toString().trim()
                 if (k.isNotBlank()) { AppPrefs.geminiApiKey = k; runAiOnOcr() }
             }
-            .setNegativeButton("Cancel", null).show()
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
-    // ── UI helpers ────────────────────────────────────────────────────────────
     private fun setStep(step: Int) {
-        binding.btnRunOcr.alpha    = if (step >= 1) 1f else 0.4f
-        binding.btnRunAi.alpha     = if (step >= 2) 1f else 0.4f
-        binding.btnSendToBulk.alpha= if (step >= 2) 1f else 0.4f
-        binding.btnRunAi.isEnabled     = step >= 2 && !isProcessing
-        binding.btnSendToBulk.isEnabled= step >= 2
+        binding.btnRunOcr.alpha     = if (step >= 1) 1f else 0.4f
+        binding.btnRunAi.alpha      = if (step >= 2) 1f else 0.4f
+        binding.btnSendToBulk.alpha = if (step >= 2) 1f else 0.4f
+        binding.btnRunAi.isEnabled      = step >= 2 && !isProcessing
+        binding.btnSendToBulk.isEnabled = step >= 2
     }
 
     private fun showProgress(msg: String) {
@@ -285,6 +315,9 @@ class ImportActivity : AppCompatActivity() {
         binding.progressBar.visibility = View.GONE
         binding.tvProgress.visibility  = View.GONE
     }
+
+    private fun toast(msg: String) =
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     override fun onSupportNavigateUp(): Boolean { finish(); return true }
     override fun onDestroy() { processingJob?.cancel(); super.onDestroy() }
