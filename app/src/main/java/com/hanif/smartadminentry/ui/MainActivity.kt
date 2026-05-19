@@ -28,14 +28,28 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { }
 
+    // Image import result
     private val importLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            val bulk    = result.data?.getStringExtra("bulk_text") ?: return@registerForActivityResult
-            val sheet   = result.data?.getStringExtra("target_sheet") ?: "Quiz"
-            val subject = result.data?.getStringExtra("subject") ?: ""
-            val subTopic= result.data?.getStringExtra("sub_topic") ?: ""
+            val bulk     = result.data?.getStringExtra("bulk_text") ?: return@registerForActivityResult
+            val sheet    = result.data?.getStringExtra("target_sheet") ?: "Quiz"
+            val subject  = result.data?.getStringExtra("subject") ?: ""
+            val subTopic = result.data?.getStringExtra("sub_topic") ?: ""
+            injectBulkText(bulk, sheet, subject, subTopic)
+        }
+    }
+
+    // PDF import result
+    private val pdfImportLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val bulk     = result.data?.getStringExtra("bulk_text") ?: return@registerForActivityResult
+            val sheet    = result.data?.getStringExtra("target_sheet") ?: "QBank"
+            val subject  = result.data?.getStringExtra("subject") ?: ""
+            val subTopic = result.data?.getStringExtra("sub_topic") ?: ""
             injectBulkText(bulk, sheet, subject, subTopic)
         }
     }
@@ -49,7 +63,7 @@ class MainActivity : AppCompatActivity() {
             supportActionBar?.title = "Smart Entry"
             requestPerms()
             setupWebView()
-            setupFab()
+            setupFabs()
             setupBackPress()
         } catch (e: Exception) {
             Log.e(TAG, "onCreate crash: ${e.message}", e)
@@ -96,12 +110,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupFab() {
-        binding.fabImport.setOnClickListener { openImport() }
-    }
-
-    private fun openImport() {
-        importLauncher.launch(Intent(this, ImportActivity::class.java))
+    private fun setupFabs() {
+        // 📸 Image import
+        binding.fabImport.setOnClickListener {
+            importLauncher.launch(Intent(this, ImportActivity::class.java))
+        }
+        // 📄 PDF import
+        binding.fabPdfImport.setOnClickListener {
+            pdfImportLauncher.launch(Intent(this, PdfImportActivity::class.java))
+        }
     }
 
     private fun injectBulkText(bulk: String, sheet: String, subject: String, subTopic: String) {
@@ -126,7 +143,7 @@ class MainActivity : AppCompatActivity() {
             })();
         """.trimIndent()
 
-        binding.webView.evaluateJavascript(js) { res ->
+        binding.webView.evaluateJavascript(js) { _ ->
             val count = bulk.lines().count { it.contains(";") }
             Toast.makeText(this, "✅ $count টি প্রশ্ন Bulk এ লোড হয়েছে!", Toast.LENGTH_LONG).show()
         }
@@ -138,16 +155,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
-        R.id.action_import   -> { openImport(); true }
-        R.id.action_settings -> { showSettings(); true }
-        R.id.action_reload   -> { binding.webView.reload(); true }
+        R.id.action_import     -> { importLauncher.launch(Intent(this, ImportActivity::class.java)); true }
+        R.id.action_pdf_import -> { pdfImportLauncher.launch(Intent(this, PdfImportActivity::class.java)); true }
+        R.id.action_settings   -> { showSettings(); true }
+        R.id.action_reload     -> { binding.webView.reload(); true }
         else -> super.onOptionsItemSelected(item)
     }
 
     private fun showSettings() {
-        val view    = layoutInflater.inflate(R.layout.dialog_settings, null)
-        val etGemini= view.findViewById<android.widget.EditText>(R.id.et_gemini_key)
-        val etScript= view.findViewById<android.widget.EditText>(R.id.et_script_url)
+        val view     = layoutInflater.inflate(R.layout.dialog_settings, null)
+        val etGemini = view.findViewById<android.widget.EditText>(R.id.et_gemini_key)
+        val etScript = view.findViewById<android.widget.EditText>(R.id.et_script_url)
         etGemini.setText(AppPrefs.geminiApiKey)
         etScript.setText(AppPrefs.scriptUrl)
         AlertDialog.Builder(this)

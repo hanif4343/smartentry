@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item android:id="@+id/action_import" android:title="📸 AI Import" app:showAsAction="never"/>
-    <item android:id="@+id/action_reload" android:title="🔄 Reload" app:showAsAction="never"/>
-    <item android:id="@+id/action_settings" android:title="⚙️ Settings" app:showAsAction="never"/>
+    <item android:id="@+id/action_import"     android:title="📸 Image Import"  app:showAsAction="never"/>
+    <item android:id="@+id/action_pdf_import" android:title="📄 PDF Import"    app:showAsAction="never"/>
+    <item android:id="@+id/action_reload"     android:title="🔄 Reload"        app:showAsAction="never"/>
+    <item android:id="@+id/action_settings"   android:title="⚙️ Settings"      app:showAsAction="never"/>
 </menu>
