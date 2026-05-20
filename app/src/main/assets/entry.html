@@ -492,6 +492,29 @@
                     <input type="checkbox" id="showTechnique" class="custom-lock" onchange="toggleTech(this.checked)" tabindex="-1">
                 </div>
             </div>
+
+            <!-- Visual Section (Study mode) -->
+            <div id="visual-section" class="hidden-box grid grid-cols-12 gap-3 items-end">
+                <div id="visual-container" class="col-span-10 hidden-box">
+                    <label class="label-text text-emerald-700">Visual / ছবি</label>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+                        <button type="button" onclick="document.getElementById('visualImgInput').click()"
+                            class="btn-tool btn-img-upload" style="font-size:10px;padding:4px 10px;border-radius:8px;" tabindex="-1">
+                            <i class="fas fa-image"></i> Visual ছবি
+                        </button>
+                        <span id="visualImgStatus" style="font-size:10px;color:#059669;font-weight:700;"></span>
+                        <input type="file" id="visualImgInput" class="hidden" accept="image/*" onchange="uploadImage(this,'visual')" tabindex="-1">
+                        <input type="hidden" id="visualImgUrl" value="">
+                    </div>
+                    <img id="visualImgPreview" src="" alt=""
+                        style="display:none;width:100%;border-radius:10px;margin-top:5px;max-height:150px;object-fit:cover;"
+                        onclick="document.getElementById('visualImgInput').click()">
+                </div>
+                <div class="col-span-2 flex flex-col items-center">
+                    <label class="label-text">Visual</label>
+                    <input type="checkbox" id="showVisual" class="custom-lock" onchange="toggleVisual(this.checked)" tabindex="-1">
+                </div>
+            </div>
         </div>
 
         <!-- ══ BULK SECTION ══ -->
@@ -859,6 +882,17 @@ async function fetchDataById() {
             }
             audRenderTags();
 
+            // Visual load করো
+            const vUrl = item.visualUrl || item.VisualURL || '';
+            document.getElementById('visualImgUrl').value = vUrl;
+            if (vUrl) {
+                document.getElementById('showVisual').checked = true;
+                toggleVisual(true);
+                const vPrev = document.getElementById('visualImgPreview');
+                if (vPrev) { vPrev.src = vUrl; vPrev.style.display = 'block'; }
+                document.getElementById('visualImgStatus').innerText = '✅';
+            }
+
             // টাইপ সেট করা (MCQ/Written)
             setQuestionType(finalType);
 
@@ -957,12 +991,14 @@ function switchMode(tab) {
     document.getElementById('main-form-area').classList.toggle('hidden-box',           isBulk);
     document.getElementById('bulk-section').classList.toggle('hidden-box',             !isBulk);
     document.getElementById('type-toggle-container').style.display = (isS || isBulk) ? 'none' : 'flex';
-    document.getElementById('question-group').style.display        = isS ? 'none' : (isBulk ? 'none' : 'block');
-    document.getElementById('answer-section').style.display        = isS ? 'none' : (isBulk ? 'none' : 'block');
+    document.getElementById('question-group').style.display        = isBulk ? 'none' : 'block';
+    document.getElementById('answer-section').style.display        = isBulk ? 'none' : 'block';
     document.getElementById('exp-group').classList.toggle('hidden-box',   isBulk);
     document.getElementById('tech-section').classList.toggle('hidden-box', isBulk);
+    document.getElementById('visual-section').classList.toggle('hidden-box', !isS || isBulk);
     document.getElementById('submitBtn').style.display             = isBulk ? 'none' : 'block';
     document.getElementById('desc-label').innerText = isS ? 'বিস্তারিত আলোচনা' : 'বিস্তারিত ব্যাখ্যা';
+    document.getElementById('correct-label').innerText = isS ? 'সঠিক উত্তর / Answer' : (currentType === 'MCQ' ? 'সঠিক উত্তর' : 'লিখিত উত্তর (বিস্তারিত)');
 
     if (!isBulk) setQuestionType(currentType);
     // এই mode এর draft আছে কিনা indicator দেখাও
@@ -989,7 +1025,7 @@ function switchMode(tab) {
 /* ─── Image Upload ─── */
 async function uploadImage(input, type) {
     if (!input.files?.[0]) return;
-    const statusMap = { qpaper:'qPaperStatus', technique:'techImgStatus', general:'uploadStatus' };
+    const statusMap = { qpaper:'qPaperStatus', technique:'techImgStatus', visual:'visualImgStatus', general:'uploadStatus' };
     const statusSpan = document.getElementById(statusMap[type] || 'uploadStatus');
     if (statusSpan) statusSpan.innerText = '⏫...';
     const fd = new FormData(); fd.append('image', input.files[0]);
@@ -1006,11 +1042,15 @@ async function uploadImage(input, type) {
                 if (statusSpan) statusSpan.innerText = '✅';
                 const prev = document.getElementById('techImgPreview');
                 if (prev) { prev.src = r.data.url; prev.style.display = 'block'; }
-                // technique field এ URL append করো
                 const techField = document.getElementById('technique');
                 if (techField && !techField.value.includes(r.data.url)) {
                     techField.value = (techField.value ? techField.value + ' ' : '') + r.data.url;
                 }
+            } else if (type === 'visual') {
+                document.getElementById('visualImgUrl').value = r.data.url;
+                if (statusSpan) statusSpan.innerText = '✅';
+                const prev = document.getElementById('visualImgPreview');
+                if (prev) { prev.src = r.data.url; prev.style.display = 'block'; }
             } else if (activeInput) {
                 activeInput.value += r.data.url; updatePreview(activeInput.value);
                 if (statusSpan) statusSpan.innerText = '✅';
@@ -1070,6 +1110,7 @@ function insertTable() {
     updatePreview(activeInput.value);
 }
 function toggleTech(show) { document.getElementById('tech-container').classList.toggle('hidden-box', !show); }
+function toggleVisual(show) { document.getElementById('visual-container').classList.toggle('hidden-box', !show); }
 
 /* ════════════════════════════════════════════
    DASHBOARD / HOME — Full Version
@@ -1766,6 +1807,7 @@ async function sendData() {
         correct:     document.getElementById('correct').value,
         explanation: document.getElementById('explanation').value,
         technique:   document.getElementById('showTechnique').checked ? document.getElementById('technique').value : '',
+        visualUrl:   document.getElementById('showVisual')?.checked ? document.getElementById('visualImgUrl').value : '',
         audienceTags: audCurrentTags.join(','),
         timestamp:   new Date().toLocaleString()
     };
@@ -1835,6 +1877,13 @@ function resetForm() {
         document.getElementById('qPaperStatus').innerText = 'UPLOAD';
     }
     ['question','opt1','opt2','opt3','opt4','correct','explanation','technique','search_id'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    // Visual reset
+    document.getElementById('visualImgUrl').value = '';
+    document.getElementById('visualImgStatus').innerText = '';
+    const vPrev = document.getElementById('visualImgPreview');
+    if (vPrev) { vPrev.src = ''; vPrev.style.display = 'none'; }
+    document.getElementById('showVisual').checked = false;
+    toggleVisual(false);
 
     closeMagic(); updatePreview('');
     // Tags reset — lock থাকলে reset করবে না
@@ -1845,7 +1894,7 @@ function resetForm() {
 
     if (!isS && !lockType) setQuestionType('MCQ');
     clearDraft(); // submit/reset হলে draft clear করো
-    setTimeout(() => { document.getElementById(isS ? 'explanation' : 'question')?.focus(); }, 50);
+    setTimeout(() => { document.getElementById('question')?.focus(); }, 50);
 }
 
 /* ─── Subject Datalist ─── */
