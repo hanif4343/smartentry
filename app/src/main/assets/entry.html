@@ -561,7 +561,9 @@
                 <p class="font-black text-blue-700 text-[11px]">📋 ফরম্যাট (প্রতি লাইন = একটি প্রশ্ন):</p>
                 <p><span class="font-bold text-green-700">MCQ →</span> প্রশ্ন ; অপ১ ; অপ২ ; অপ৩ ; অপ৪ ; সঠিকউত্তর ; ব্যাখ্যা(optional)</p>
                 <p><span class="font-bold text-orange-700">Written →</span> প্রশ্ন ; উত্তর ; ব্যাখ্যা(optional)</p>
-                <p><span class="font-bold text-emerald-700">Study →</span> প্রশ্ন ; সঠিকউত্তর ; ব্যাখ্যা(optional)</p>
+                <p><span class="font-bold text-emerald-700">Study →</span> "প্রশ্ন ; উত্তর লাইন১
+উত্তর লাইন২..."
+"পরের প্রশ্ন ; পরের উত্তর..."</p>
 
             </div>
 
@@ -631,8 +633,25 @@
                     class="flex-1 btn-submit !mt-0 !rounded-xl flex items-center justify-center gap-2">
                     <i class="fas fa-paper-plane"></i> Submit Bulk Question
                 </button>
+                <button onclick="addToBulkQueue()" id="bulkQueueBtn"
+                    class="bg-indigo-100 text-indigo-700 px-4 rounded-xl font-black text-sm border-2 border-indigo-300 flex items-center gap-1" tabindex="-1" title="Queue তে যোগ করুন">
+                    <i class="fas fa-plus"></i> Queue
+                </button>
                 <button onclick="clearBulkUI()" class="bg-slate-200 text-slate-700 px-4 rounded-xl font-bold text-sm" tabindex="-1">
                     <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <!-- Bulk Task Queue preview -->
+            <div id="bulk-queue-preview" class="hidden-box">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-black text-indigo-700">📋 Queue তে আছে:</span>
+                    <button onclick="clearBulkQueue()" class="text-[10px] text-red-500 font-bold">সব মুছো</button>
+                </div>
+                <div id="bulk-queue-chips" class="flex flex-col gap-1"></div>
+                <button onclick="startBulkQueue()" id="bulkQueueStartBtn"
+                    class="w-full mt-2 bg-indigo-600 text-white py-2 rounded-xl font-black text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-play"></i> Queue শুরু করো (<span id="queue-task-count">0</span>টি task)
                 </button>
             </div>
         </div>
@@ -1737,12 +1756,51 @@ async function updateQueueBadge() {
 }
 
 async function forceSyncNow() {
+    const db = await openQueueDB();
+    const items = await new Promise(res => {
+        const tx = db.transaction(STORE_Q, 'readonly');
+        tx.objectStore(STORE_Q).getAll().onsuccess = e => res(e.target.result);
+    });
+
+    if (!items.length) {
+        Swal.fire({ icon:'success', title:'কোনো পেন্ডিং নেই!', toast:true, position:'top-end', timer:2000, showConfirmButton:false });
+        return;
+    }
+
+    // Build list HTML
+    const listHTML = items.map((item, i) => {
+        const q = (item.params?.question || '').substring(0, 60);
+        const tab = item.params?.targetTab || '?';
+        const sub = item.params?.subject || '';
+        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
+            <span style="min-width:22px;height:22px;background:#4f46e5;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">${i+1}</span>
+            <div style="flex:1;text-align:left;">
+                <div style="font-size:12px;font-weight:700;color:#1e1b4b;">${q}${q.length>=60?'...':''}</div>
+                <div style="font-size:10px;color:#6b7280;margin-top:2px;">${tab} · ${sub}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    const { isConfirmed } = await Swal.fire({
+        title: `<span style="font-size:15px;">☁ ${items.length}টি পেন্ডিং প্রশ্ন</span>`,
+        html: `<div style="max-height:320px;overflow-y:auto;margin-top:8px;">${listHTML}</div>`,
+        showCancelButton: true,
+        confirmButtonText: '🔄 এখনই Sync করো',
+        cancelButtonText: 'বন্ধ করো',
+        confirmButtonColor: '#4f46e5',
+        reverseButtons: true,
+    });
+
+    if (!isConfirmed) return;
+
+    Swal.fire({ title:'🔄 Sync হচ্ছে...', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'FORCE_SYNC' });
-        Swal.fire({ icon:'info', title:'সিনক শুরু হচ্ছে...', toast:true, position:'top-end', timer:1500, showConfirmButton:false });
+        setTimeout(() => { Swal.close(); updateQueueBadge(); }, 3000);
     } else {
-        // SW নেই — সরাসরি পাঠানোর চেষ্টা
         await flushQueueDirect();
+        Swal.close();
     }
 }
 
@@ -1756,7 +1814,7 @@ async function flushQueueDirect() {
     let sent = 0;
     for (const item of items) {
         try {
-            await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify(item.params) });
+            await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body: JSON.stringify(item.params) });
             const tx = db.transaction(STORE_Q, 'readwrite');
             tx.objectStore(STORE_Q).delete(item.id);
             sent++;
@@ -2040,12 +2098,33 @@ function parseBulkLine(line, qtype) {
         if (parts.length < 2) return { err: true, reason: 'Written: কমপক্ষে প্রশ্ন ও উত্তর দিন' };
         return { ok:true, q:parts[0], correct:parts[1], explanation:parts[2]||'' };
     } else if (qtype === 'Study') {
-        if (parts.length < 2) return { err: true, reason: 'Study: কমপক্ষে প্রশ্ন ও সঠিক উত্তর দিন' };
-        return { ok:true, q:parts[0], correct:parts[1], explanation:parts[2]||'' };
+        const firstSemi = trimmed.indexOf(';');
+        if (firstSemi === -1) return { err: true, reason: 'Study: প্রশ্ন ও উত্তর ; দিয়ে আলাদা করুন' };
+        const q = trimmed.substring(0, firstSemi).trim();
+        const rest = trimmed.substring(firstSemi + 1).trim();
+        if (!q || !rest) return { err: true, reason: 'Study: প্রশ্ন বা উত্তর খালি' };
+        return { ok: true, q, correct: rest, explanation: '' };
     } else {
         if (parts.length < 6) return { err: true, reason: `MCQ: ${parts.length} কলাম পাওয়া গেছে (দরকার ৬+)` };
         return { ok:true, q:parts[0], opt1:parts[1], opt2:parts[2], opt3:parts[3], opt4:parts[4], correct:parts[5], explanation:parts[6]||'' };
     }
+}
+
+function getEntries(raw, qtype) {
+    if (qtype === 'Study') {
+        // Entries wrapped in "..." quotes
+        const entries = [];
+        const regex = /"([\s\S]+?)"/g;
+        let match;
+        while ((match = regex.exec(raw)) !== null) {
+            const entry = match[1].trim();
+            if (entry) entries.push(entry);
+        }
+        // Fallback: if no quotes found, treat whole text as one entry
+        if (entries.length === 0 && raw.trim()) entries.push(raw.trim());
+        return entries;
+    }
+    return raw.split('\n').map(s => s.trim()).filter(Boolean);
 }
 
 function validateBulkData() {
@@ -2053,7 +2132,7 @@ function validateBulkData() {
     const qtype = document.getElementById('bulk_qtype').value;
     if (!raw.trim()) { document.getElementById('bulk-stat-row').classList.add('hidden-box'); document.getElementById('bulk-validate-badge').innerText=''; return; }
     let total=0, ok=0, skip=0, err=0;
-    raw.split('\n').forEach(l => { total++; const r=parseBulkLine(l,qtype); if(r.skip) skip++; else if(r.err) err++; else ok++; });
+    getEntries(raw, qtype).forEach(l => { total++; const r=parseBulkLine(l,qtype); if(r.skip) skip++; else if(r.err) err++; else ok++; });
     document.getElementById('bulk-stat-row').classList.remove('hidden-box');
     document.getElementById('bs-total').innerText = `Total: ${total}`;
     document.getElementById('bs-ok').innerText    = `Valid: ${ok}`;
@@ -2223,16 +2302,10 @@ async function sendOne(item, target, qtype, finalSub, newSub, counters, total) {
     };
     try {
         if (!navigator.onLine) throw new Error('offline');
-        const res  = await fetch(SCRIPT_URL, { method:'POST', body:JSON.stringify(params) });
-        const data = await res.json().catch(() => ({}));
-
-        if (data.result === 'duplicate') {
-            counters.skipped = (counters.skipped||0) + 1;
-            appendLog(`⏭ আগে থেকেই আছে (L${item.line}): ${item.q.substring(0,45)}...`, 'log-skip');
-        } else {
-            counters.sent++;
-            appendLog(`✔ ${item.q.substring(0,55)}...`, 'log-ok');
-        }
+        const res  = await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', body:JSON.stringify(params) });
+        // GAS returns opaque (no-cors) — treat as success
+        counters.sent++;
+        appendLog(`✔ ${item.q.substring(0,55)}...`, 'log-ok');
     } catch(e) {
         if (!navigator.onLine) {
             await addToQueue(params);
@@ -2275,74 +2348,177 @@ async function runUpload(items, target, qtype, finalSub, newSub) {
     return counters;
 }
 
-function finishUpload(sent, failed, skipped, skipCount) {
-    document.getElementById('bulkSendBtn').classList.remove('btn-loading');
-    document.getElementById('todayCount').innerText = parseInt(document.getElementById('todayCount').innerText) + sent;
+/* ══ BULK TASK QUEUE ══ */
+let bulkTaskQueue = [];
+let bulkQueueRunning = false;
 
-    const runningBtns = document.getElementById('panel-btns-running');
-    const failedBtns  = document.getElementById('panel-btns-failed');
-    const completeBadge = document.getElementById('bulk-complete-badge');
+function addToBulkQueue() {
+    const raw    = document.getElementById('bulk_data').value.trim();
+    const target = document.getElementById('bulk_target').value;
+    const qtype  = document.getElementById('bulk_qtype').value;
+    const selSub = document.getElementById('bulk_subject_select').value;
+    const newSub = document.getElementById('bulk_sub_topic').value.trim();
+    const finalSub = selSub || newSub;
 
-    if (bulkStopped) {
-        // ── থামানো হয়েছে ──
-        document.getElementById('p-status-text').innerText = `⛔ থামানো। ${sent} সফল · ${failed} ব্যর্থ${skipped > 0 ? ` · ${skipped} duplicate` : ''}`;
-        document.getElementById('p-eta').innerText = 'থামানো';
-        runningBtns.style.display = 'flex';
-        failedBtns.style.display  = 'none';
-        completeBadge.style.display = 'none';
-        if (failedItems.length > 0) {
-            document.getElementById('bulkRetryBtn').style.display = 'flex';
-        }
+    if (!raw)      return Swal.fire({icon:'warning', title:'প্রশ্ন দিন!', toast:true, position:'top-end', timer:1800, showConfirmButton:false});
+    if (!finalSub) return Swal.fire({icon:'warning', title:'Subject / Sub-Topic দিন!', toast:true, position:'top-end', timer:1800, showConfirmButton:false});
 
-    } else if (failed === 0 && sent > 0) {
-        // ── ১০০% সফল ──
-        runningBtns.style.display   = 'none';
-        failedBtns.style.display    = 'none';
-        completeBadge.style.display = 'flex';
+    const lines = getEntries(raw, qtype);
+    const valid = lines.map(l => parseBulkLine(l, qtype)).filter(p => p.ok).length;
+    if (!valid) return Swal.fire({icon:'error', title:'কোনো বৈধ প্রশ্ন নেই!', toast:true, position:'top-end', timer:1800, showConfirmButton:false});
 
-        const elapsed = bulkStartTime ? Math.round((Date.now() - bulkStartTime) / 1000) : 0;
-        const m = Math.floor(elapsed/60), s = elapsed%60;
-        document.getElementById('bulk-complete-text').innerText = `${sent}টি প্রশ্ন যোগ হয়েছে${skipped > 0 ? ` · ${skipped}টি আগে থেকেই ছিল` : ''}!`;
-        document.getElementById('bulk-complete-sub').innerText  = `সময় লেগেছে: ${m>0?m+'মি ':''} ${s}সে`;
-        document.getElementById('p-status-text').innerText = '';
-        document.getElementById('p-eta').innerText = '✅';
-        document.getElementById('p-pct').innerText = '100%';
+    bulkTaskQueue.push({ raw, target, qtype, finalSub, newSub, validCount: valid, audienceTags: [...audCurrentTags] });
+    renderBulkQueueChips();
 
-        // সাউন্ড
-        playBulkDone();
+    // Form clear করো নতুন entry র জন্য
+    document.getElementById('bulk_data').value = '';
+    document.getElementById('bulk_sub_topic').value = '';
+    document.getElementById('bulk-stat-row').classList.add('hidden-box');
+    document.getElementById('bulk-validate-badge').innerText = '';
+    document.getElementById('bulk_data').focus();
 
-        // ২ সেকেন্ড পর auto-clear
-        setTimeout(() => {
-            document.getElementById('bulk_data').value = '';
-            clearBulkUI();
-            // badge reset
-            document.getElementById('bulk-complete-badge').style.display = 'none';
-            runningBtns.style.display = 'flex';
-            document.getElementById('bulkRetryBtn').style.display = 'none';
-        }, 3000);
-
-    } else if (failed > 0) {
-        // ── কিছু ব্যর্থ ──
-        runningBtns.style.display   = 'none';
-        completeBadge.style.display = 'none';
-        failedBtns.style.display    = 'flex';
-        document.getElementById('p-status-text').innerText = `⚠️ ${sent} সফল · ${failed}টি পাঠানো যায়নি`;
-        document.getElementById('p-eta').innerText = 'ব্যর্থ';
-        // progress bar লাল করো
-        document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
-    }
-
-    // Background থেকে app এ ফিরলে বোঝার জন্য localStorage flag
-    if (!bulkStopped) {
-        localStorage.setItem('bulk_last_result', JSON.stringify({
-            sent, failed, skipCount,
-            time: new Date().toLocaleString(),
-            status: failed === 0 ? 'success' : 'partial'
-        }));
-    }
+    Swal.fire({icon:'success', title:`✅ Queue তে যোগ হয়েছে! (${valid}টি প্রশ্ন)`, toast:true, position:'top-end', timer:1500, showConfirmButton:false});
 }
 
-async function processBulkData() {
+function renderBulkQueueChips() {
+    const preview = document.getElementById('bulk-queue-preview');
+    const chips   = document.getElementById('bulk-queue-chips');
+    const count   = document.getElementById('queue-task-count');
+
+    if (!bulkTaskQueue.length) {
+        preview.classList.add('hidden-box');
+        return;
+    }
+    preview.classList.remove('hidden-box');
+    count.innerText = bulkTaskQueue.length;
+
+    chips.innerHTML = bulkTaskQueue.map((t, i) => `
+        <div style="display:flex;align-items:center;gap:8px;background:white;border:1.5px solid #c7d2fe;border-radius:10px;padding:7px 10px;">
+            <span style="min-width:20px;height:20px;background:#4f46e5;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;">${i+1}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:10px;font-weight:800;color:#1e1b4b;">${t.target} · ${t.qtype} · ${t.finalSub}</div>
+                <div style="font-size:9px;color:#6b7280;">${t.validCount}টি প্রশ্ন · ${t.newSub||''}</div>
+            </div>
+            <button onclick="removeBulkQueueItem(${i})" style="color:#ef4444;font-size:13px;background:none;border:none;cursor:pointer;">✕</button>
+        </div>`).join('');
+}
+
+function removeBulkQueueItem(idx) {
+    bulkTaskQueue.splice(idx, 1);
+    renderBulkQueueChips();
+}
+
+function clearBulkQueue() {
+    bulkTaskQueue = [];
+    renderBulkQueueChips();
+}
+
+async function startBulkQueue() {
+    if (!bulkTaskQueue.length) return;
+    if (bulkQueueRunning) return;
+    bulkQueueRunning = true;
+    document.getElementById('bulkQueueStartBtn').disabled = true;
+    document.getElementById('bulkQueueBtn').disabled = true;
+
+    const totalTasks = bulkTaskQueue.length;
+    for (let ti = 0; ti < totalTasks; ti++) {
+        if (!bulkTaskQueue.length) break;
+        const task = bulkTaskQueue[0];
+
+        appendLog(`\n▶ Task ${ti+1}/${totalTasks} শুরু: ${task.target} · ${task.finalSub} (${task.validCount}টি)`, 'log-ok');
+
+        // সরাসরি task data দিয়ে process — DOM manipulation নয়
+        await processBulkTask(task);
+
+        bulkTaskQueue.shift();
+        renderBulkQueueChips();
+
+        if (bulkTaskQueue.length > 0) {
+            appendLog(`⏳ পরের task ${ti+2}/${totalTasks} শুরু হচ্ছে...`, 'log-ok');
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+
+    bulkQueueRunning = false;
+    document.getElementById('bulkQueueBtn').disabled = false;
+    appendLog(`\n🎉 সব ${totalTasks}টি Task সম্পন্ন!`, 'log-ok');
+    playBulkDone();
+}
+
+// Queue থেকে সরাসরি task object নিয়ে process করে — DOM এর উপর নির্ভর করে না
+async function processBulkTask(task) {
+    const { raw, target, qtype, finalSub, newSub, audienceTags } = task;
+
+    const lines  = getEntries(raw, qtype);
+    const parsed = lines.map((l, i) => ({ line: i+1, raw: l, ...parseBulkLine(l, qtype) }));
+    const valid  = parsed.filter(p => p.ok);
+    if (!valid.length) { appendLog('⚠ কোনো valid প্রশ্ন নেই, skip করা হলো।', 'log-err'); return; }
+
+    // Panel reset
+    bulkStopped = false;
+    failedItems = [];
+    document.getElementById('bulk-panel').classList.add('active');
+    document.getElementById('bulkRetryBtn').style.display  = 'none';
+    document.getElementById('bulk-progress-bar').style.width      = '0%';
+    document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#6366f1,#3b82f6,#10b981)';
+    document.getElementById('p-done').innerText   = 0;
+    document.getElementById('p-total').innerText  = valid.length;
+    document.getElementById('p-pct').innerText    = '0%';
+    document.getElementById('p-eta').innerText    = 'শুরু হচ্ছে...';
+    document.getElementById('p-status-text').innerText = 'শুরু হচ্ছে...';
+    document.getElementById('bulk-complete-badge').style.display = 'none';
+    document.getElementById('panel-btns-running').style.display  = 'flex';
+    document.getElementById('panel-btns-failed').style.display   = 'none';
+
+    // Tags — task এ save করা ছিল
+    const savedTags = audCurrentTags;
+    if (audienceTags && audienceTags.length) audCurrentTags = audienceTags;
+
+    startBulkTimer();
+    await acquireWakeLock();
+
+    const { sent, failed, skipped } = await runUpload(valid, target, qtype, finalSub, newSub);
+
+    stopBulkTimer();
+    await releaseWakeLock();
+
+    // Tags restore
+    audCurrentTags = savedTags;
+
+    // finishUpload inline (queue mode — no auto-clear timeout needed)
+    document.getElementById('bulkSendBtn').classList.remove('btn-loading');
+    document.getElementById('todayCount').innerText = parseInt(document.getElementById('todayCount').innerText||0) + sent;
+
+    const elapsed = bulkStartTime ? Math.round((Date.now() - bulkStartTime) / 1000) : 0;
+    const m = Math.floor(elapsed/60), s = elapsed%60;
+
+    if (failed === 0 && sent > 0) {
+        document.getElementById('panel-btns-running').style.display   = 'none';
+        document.getElementById('panel-btns-failed').style.display    = 'none';
+        document.getElementById('bulk-complete-badge').style.display  = 'flex';
+        document.getElementById('bulk-complete-text').innerText = `${sent}টি যোগ${skipped > 0 ? ` · ${skipped} duplicate` : ''}!`;
+        document.getElementById('bulk-complete-sub').innerText  = `${m>0?m+'মি ':''} ${s}সে`;
+        document.getElementById('p-eta').innerText = '✅';
+        document.getElementById('p-pct').innerText = '100%';
+    } else if (failed > 0) {
+        document.getElementById('panel-btns-running').style.display   = 'none';
+        document.getElementById('panel-btns-failed').style.display    = 'flex';
+        document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+        document.getElementById('p-status-text').innerText = `⚠️ ${sent} সফল · ${failed}টি ব্যর্থ`;
+    }
+
+    localStorage.setItem('bulk_last_result', JSON.stringify({
+        sent, failed, skipCount: skipped,
+        time: new Date().toLocaleString(),
+        status: failed === 0 ? 'success' : 'partial'
+    }));
+    await updateQueueBadge();
+    // ছোট delay যাতে UI update দেখা যায়
+    await new Promise(r => setTimeout(r, 600));
+}
+
+
+async function processBulkData(queueMode = false) {
     const raw    = document.getElementById('bulk_data').value.trim();
     const target = document.getElementById('bulk_target').value;
     const qtype  = document.getElementById('bulk_qtype').value;
@@ -2353,14 +2529,14 @@ async function processBulkData() {
     if (!raw)      return Swal.fire('Error','প্রশ্ন দিন!','error');
     if (!finalSub) return Swal.fire('Error','Subject / Sub-Topic দিন!','error');
 
-    const lines  = raw.split('\n');
+    const lines  = getEntries(raw, qtype);
     const parsed = lines.map((l,i) => ({ line:i+1, raw:l, ...parseBulkLine(l,qtype) }));
     const valid  = parsed.filter(p => p.ok);
     const errors = parsed.filter(p => p.err);
 
     if (valid.length === 0) return Swal.fire('Error','কোনো বৈধ প্রশ্ন নেই!','warning');
 
-    if (errors.length > 0) {
+    if (errors.length > 0 && !queueMode) {
         const skipLines = parsed.filter(p => p.skip);
         let detailHtml  = `<div style="text-align:left;max-height:200px;overflow-y:auto;font-size:12px;margin-top:8px;">`;
         if (errors.length) {
@@ -2417,8 +2593,54 @@ async function processBulkData() {
 
     stopBulkTimer();
     await releaseWakeLock();
-    finishUpload(sent, failed, skipped || 0, errors.length);
+    finishUpload(sent, failed, skipped || 0, errors.length, queueMode);
     await updateQueueBadge();
+}
+
+function finishUpload(sent, failed, skipped, skipCount, queueMode = false) {
+    document.getElementById('bulkSendBtn').classList.remove('btn-loading');
+    document.getElementById('todayCount').innerText = parseInt(document.getElementById('todayCount').innerText||0) + sent;
+
+    const elapsed = bulkStartTime ? Math.round((Date.now() - bulkStartTime) / 1000) : 0;
+    const m = Math.floor(elapsed/60), s = elapsed%60;
+    const runningBtns = document.getElementById('panel-btns-running');
+    const failedBtns  = document.getElementById('panel-btns-failed');
+    const completeBadge = document.getElementById('bulk-complete-badge');
+
+    if (failed === 0 && sent > 0) {
+        runningBtns.style.display  = 'none';
+        failedBtns.style.display   = 'none';
+        completeBadge.style.display = 'flex';
+        document.getElementById('bulk-complete-text').innerText = `${sent}টি যোগ${skipped>0?` · ${skipped} duplicate`:''}!`;
+        document.getElementById('bulk-complete-sub').innerText  = `${m>0?m+'মি ':''} ${s}সে`;
+        document.getElementById('p-eta').innerText = '✅';
+        document.getElementById('p-pct').innerText = '100%';
+
+        if (!queueMode) playBulkDone();
+
+        setTimeout(() => {
+            document.getElementById('bulk_data').value = '';
+            clearBulkUI();
+            completeBadge.style.display  = 'none';
+            runningBtns.style.display    = 'flex';
+            document.getElementById('bulkRetryBtn').style.display = 'none';
+        }, queueMode ? 600 : 3000);
+
+    } else if (failed > 0) {
+        runningBtns.style.display = 'none';
+        failedBtns.style.display  = 'flex';
+        document.getElementById('bulk-progress-bar').style.background = 'linear-gradient(90deg,#ef4444,#dc2626)';
+        document.getElementById('p-status-text').innerText = `⚠️ ${sent} সফল · ${failed}টি ব্যর্থ`;
+        document.getElementById('bulkRetryBtn').style.display = 'flex';
+    }
+
+    if (!bulkStopped) {
+        localStorage.setItem('bulk_last_result', JSON.stringify({
+            sent, failed, skipCount,
+            time: new Date().toLocaleString(),
+            status: failed === 0 ? 'success' : 'partial'
+        }));
+    }
 }
 
 /* ════════════════════════════════════════════
