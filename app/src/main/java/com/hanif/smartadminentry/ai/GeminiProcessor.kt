@@ -3,10 +3,10 @@ package com.hanif.smartadminentry.ai
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 object GeminiProcessor {
@@ -23,35 +23,26 @@ object GeminiProcessor {
 
     private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String): String {
         return """
-তুমি একটি পরীক্ষার প্রশ্নপত্র formatter। নিচের OCR text বিশ্লেষণ করে প্রথমে content type detect করো, তারপর সেই অনুযায়ী format এ output দাও।
+Exam question formatter. OCR text analyze kore auto-detect koro content type, then format koro.
 
 Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }} | Sheet: $targetSheet
 
-CONTENT TYPE AUTO-DETECT:
+DETECT TYPE:
+A=STUDY: question+answer ache, kono k/kh/g/gh option nei.
+B=MCQ: k. kh. g. gh. option + "u." answer ache.
+C=WRITTEN: boro question, sub-questions ache.
 
-TYPE A — STUDY: প্রশ্ন + উত্তর আছে, কিন্তু ক/খ/গ/ঘ option নেই।
-TYPE B — MCQ: ক. খ. গ. ঘ. option + "উ." দিয়ে উত্তর আছে।
-TYPE C — WRITTEN: বড় প্রশ্ন, sub-question আছে, বিস্তারিত উত্তর আছে।
+OUTPUT FORMAT (each line):
+TYPE A: question;answer
+TYPE B: question;opt1;opt2;opt3;opt4;answer_text
+TYPE C: full_question;answer
 
-FORMAT RULES:
+RULES:
+- Remove serial numbers, "উত্তর:" prefix, footer, page ref
+- No semicolon inside fields, use pipe(|) instead
+- MCQ answer: write option TEXT not "ক"/"খ"
 
-TYPE A output (প্রতি line): প্রশ্ন;উত্তর
-উদাহরণ:
-'The Laws' গ্রন্থের রচয়িতা কে?;প্লেটো
-রাষ্ট্রবিজ্ঞানের জনক কাকে বলা হয়?;এরিস্টটল
-
-TYPE B output (প্রতি line): প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর_text
-ANSWER RULE: "উ. ক" মানে ক এর text। "উ. ঘ" মানে ঘ এর text। "ক"/"খ" লিখবে না।
-
-TYPE C output (প্রতি line): পুরো প্রশ্ন;উত্তর
-
-নিয়ম:
-- Serial number বাদ দাও
-- "উত্তর:" prefix বাদ দাও, শুধু উত্তর রাখো
-- field এর ভেতরে semicolon নয়, pipe (|) দিয়ে আলাদা করো
-- footer, page reference, website বাদ দাও
-
-OCR TEXT:
+OCR:
 $ocrText
 """.trimIndent()
     }
@@ -69,31 +60,36 @@ $ocrText
         val prompt = buildPrompt(ocrText, targetSheet, subject, subTopic)
 
         try {
-            // POST as form data to avoid URL length limit
-            val formBody = FormBody.Builder()
-                .add("action", "getAI")
-                .add("prompt", prompt)
-                .build()
+            val encodedPrompt = URLEncoder.encode(prompt, "UTF-8")
+            val url = "$SCRIPT_URL?action=getAI&prompt=$encodedPrompt"
+
+            Log.d(TAG, "URL length: ${url.length}")
 
             val req = Request.Builder()
-                .url(SCRIPT_URL)
-                .post(formBody)
+                .url(url)
+                .get()
                 .build()
 
             val response = client.newCall(req).execute()
             val body = response.body?.string() ?: ""
 
-            Log.d(TAG, "Script response code: ${response.code}")
-            Log.d(TAG, "Body preview: ${body.take(300)}")
+            Log.d(TAG, "Response code: ${response.code}")
+            Log.d(TAG, "Body (300): ${body.take(300)}")
 
             if (!response.isSuccessful) {
                 return@withContext GeminiResult.Error("Script Error ${response.code}")
             }
 
-            // Apps Script getAI returns raw Gemini JSON
+            // Parse Gemini JSON returned by Apps Script getAI
             val rawText = try {
-                JSONObject(body)
-                    .getJSONArray("candidates")
+                val json = JSONObject(body)
+                // Check for error in response
+                if (json.has("error")) {
+                    val errMsg = json.getString("error")
+                    Log.e(TAG, "Gemini error: $errMsg")
+                    return@withContext GeminiResult.Error("AI Error: $errMsg")
+                }
+                json.getJSONArray("candidates")
                     .getJSONObject(0)
                     .getJSONObject("content")
                     .getJSONArray("parts")
@@ -101,8 +97,8 @@ $ocrText
                     .getString("text")
                     .trim()
             } catch (e: Exception) {
-                Log.e(TAG, "JSON parse failed: ${e.message} | body: ${body.take(200)}")
-                return@withContext GeminiResult.Error("Response parse error: ${e.message}")
+                Log.e(TAG, "Parse error: ${e.message} | body: ${body.take(300)}")
+                return@withContext GeminiResult.Error("Response parse error: ${e.message}\n\nBody: ${body.take(200)}")
             }
 
             val lines = rawText.lines()
@@ -111,15 +107,15 @@ $ocrText
                     line.isNotBlank()
                     && !line.startsWith("```")
                     && !line.startsWith("TYPE")
-                    && !line.startsWith("FORMAT")
+                    && !line.startsWith("OUTPUT")
+                    && !line.startsWith("DETECT")
+                    && !line.startsWith("RULES")
                     && !line.startsWith("OCR")
-                    && !line.startsWith("উদাহরণ")
                     && line.contains(";")
                 }
 
             if (lines.isEmpty()) {
-                Log.w(TAG, "No lines parsed. Raw text: $rawText")
-                return@withContext GeminiResult.Error("AI থেকে কোনো প্রশ্ন parse হয়নি।")
+                return@withContext GeminiResult.Error("AI থেকে কোনো প্রশ্ন parse হয়নি।\n\nRaw: ${rawText.take(200)}")
             }
 
             Log.d(TAG, "Parsed ${lines.size} questions OK")
