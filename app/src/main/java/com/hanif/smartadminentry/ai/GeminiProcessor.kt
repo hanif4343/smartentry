@@ -3,10 +3,11 @@ package com.hanif.smartadminentry.ai
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 object GeminiProcessor {
@@ -23,26 +24,24 @@ object GeminiProcessor {
 
     private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String): String {
         return """
-Exam question formatter. OCR text analyze kore auto-detect koro content type, then format koro.
+Exam question formatter. Analyze OCR text, auto-detect type, output formatted lines.
 
 Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }} | Sheet: $targetSheet
 
-DETECT TYPE:
-A=STUDY: question+answer ache, kono k/kh/g/gh option nei.
-B=MCQ: k. kh. g. gh. option + "u." answer ache.
-C=WRITTEN: boro question, sub-questions ache.
+TYPE DETECTION:
+A=STUDY: question+answer, no k/kh/g/gh options.
+B=MCQ: has k. kh. g. gh. options + "u." answer.
+C=WRITTEN: long question with sub-parts.
 
-OUTPUT FORMAT (each line):
-TYPE A: question;answer
-TYPE B: question;opt1;opt2;opt3;opt4;answer_text
-TYPE C: full_question;answer
+OUTPUT (one line per question):
+A: question;answer
+B: question;opt1;opt2;opt3;opt4;answer_text (write option TEXT not "ক"/"খ")
+C: question;answer
 
-RULES:
-- Remove serial numbers, "উত্তর:" prefix, footer, page ref
-- No semicolon inside fields, use pipe(|) instead
-- MCQ answer: write option TEXT not "ক"/"খ"
+REMOVE: serial numbers, "উত্তর:" prefix, footer, page refs.
+NO semicolon inside fields — use pipe(|) instead.
 
-OCR:
+OCR TEXT:
 $ocrText
 """.trimIndent()
     }
@@ -60,34 +59,30 @@ $ocrText
         val prompt = buildPrompt(ocrText, targetSheet, subject, subTopic)
 
         try {
-            val encodedPrompt = URLEncoder.encode(prompt, "UTF-8")
-            val url = "$SCRIPT_URL?action=getAI&prompt=$encodedPrompt"
-
-            Log.d(TAG, "URL length: ${url.length}")
+            // POST JSON body — no URL length limit
+            val jsonBody = JSONObject().apply {
+                put("action", "getAI")
+                put("prompt", prompt)
+            }
 
             val req = Request.Builder()
-                .url(url)
-                .get()
+                .url(SCRIPT_URL)
+                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 
             val response = client.newCall(req).execute()
             val body = response.body?.string() ?: ""
 
-            Log.d(TAG, "Response code: ${response.code}")
-            Log.d(TAG, "Body (300): ${body.take(300)}")
+            Log.d(TAG, "Code: ${response.code} | Body: ${body.take(300)}")
 
             if (!response.isSuccessful) {
-                return@withContext GeminiResult.Error("Script Error ${response.code}")
+                return@withContext GeminiResult.Error("Script Error ${response.code}: ${body.take(100)}")
             }
 
-            // Parse Gemini JSON returned by Apps Script getAI
             val rawText = try {
                 val json = JSONObject(body)
-                // Check for error in response
                 if (json.has("error")) {
-                    val errMsg = json.getString("error")
-                    Log.e(TAG, "Gemini error: $errMsg")
-                    return@withContext GeminiResult.Error("AI Error: $errMsg")
+                    return@withContext GeminiResult.Error("AI Error: ${json.getString("error")}")
                 }
                 json.getJSONArray("candidates")
                     .getJSONObject(0)
@@ -97,8 +92,8 @@ $ocrText
                     .getString("text")
                     .trim()
             } catch (e: Exception) {
-                Log.e(TAG, "Parse error: ${e.message} | body: ${body.take(300)}")
-                return@withContext GeminiResult.Error("Response parse error: ${e.message}\n\nBody: ${body.take(200)}")
+                Log.e(TAG, "Parse fail: ${e.message} | ${body.take(200)}")
+                return@withContext GeminiResult.Error("Parse error: ${e.message} | ${body.take(150)}")
             }
 
             val lines = rawText.lines()
@@ -109,16 +104,16 @@ $ocrText
                     && !line.startsWith("TYPE")
                     && !line.startsWith("OUTPUT")
                     && !line.startsWith("DETECT")
-                    && !line.startsWith("RULES")
+                    && !line.startsWith("REMOVE")
                     && !line.startsWith("OCR")
                     && line.contains(";")
                 }
 
             if (lines.isEmpty()) {
-                return@withContext GeminiResult.Error("AI থেকে কোনো প্রশ্ন parse হয়নি।\n\nRaw: ${rawText.take(200)}")
+                return@withContext GeminiResult.Error("কোনো প্রশ্ন parse হয়নি।\nRaw: ${rawText.take(200)}")
             }
 
-            Log.d(TAG, "Parsed ${lines.size} questions OK")
+            Log.d(TAG, "OK: ${lines.size} questions")
             GeminiResult.Success(lines)
 
         } catch (e: Exception) {
