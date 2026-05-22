@@ -3,22 +3,22 @@ package com.hanif.smartadminentry.ai
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 object GeminiProcessor {
 
     private const val TAG = "GeminiProcessor"
-    private const val MODEL = "gemini-2.0-flash-001"
+    private const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjF7iFX0H_rFuJgMJYo70DC7KRX1lBXU7m7NoZCwf6VTJfRm6Iyw6hOcN2q_UKbxxgQg/exec"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String): String {
@@ -27,73 +27,31 @@ object GeminiProcessor {
 
 Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }} | Sheet: $targetSheet
 
-════════════════════════
-STEP 1 — CONTENT TYPE AUTO-DETECT:
-════════════════════════
+CONTENT TYPE AUTO-DETECT:
 
-নিচের ৩টি type এর মধ্যে একটি বেছে নাও:
+TYPE A — STUDY: প্রশ্ন + উত্তর আছে, কিন্তু ক/খ/গ/ঘ option নেই।
+TYPE B — MCQ: ক. খ. গ. ঘ. option + "উ." দিয়ে উত্তর আছে।
+TYPE C — WRITTEN: বড় প্রশ্ন, sub-question আছে, বিস্তারিত উত্তর আছে।
 
-TYPE A — STUDY (Q&A / Short Answer):
-চেনার উপায়: প্রশ্ন + উত্তর আছে, কিন্তু ক/খ/গ/ঘ option নেই।
-যেমন: "'The Laws' গ্রন্থের রচয়িতা কে? — উত্তর: প্লেটো"
-যেমন: "সদগুণই জ্ঞান — উক্তিটি কার? — সক্রেটিস"
+FORMAT RULES:
 
-TYPE B — MCQ:
-চেনার উপায়: ক. খ. গ. ঘ. চারটি option আছে এবং "উ." দিয়ে উত্তর দেওয়া আছে।
-
-TYPE C — WRITTEN (Descriptive/Sub-questions):
-চেনার উপায়: বড় প্রশ্ন, ক) খ) গ) sub-question আছে, বিস্তারিত উত্তর আছে।
-
-════════════════════════
-STEP 2 — FORMAT RULES BY TYPE:
-════════════════════════
-
-TYPE A — STUDY format (প্রতিটা line):
-প্রশ্ন;উত্তর
-
-উদাহরণ output:
+TYPE A output (প্রতি line): প্রশ্ন;উত্তর
+উদাহরণ:
 'The Laws' গ্রন্থের রচয়িতা কে?;প্লেটো
-এরিস্টটলের মতে নিকৃষ্ট শাসন ব্যবস্থা কোনটি?;গণতন্ত্র
-Man is born free but everywhere he is in chains — উক্তিটি কার?;জ্যাঁ জ্যাক রুশো
 রাষ্ট্রবিজ্ঞানের জনক কাকে বলা হয়?;এরিস্টটল
 
-TYPE B — MCQ format (প্রতিটা line):
-প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর_text
+TYPE B output (প্রতি line): প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর_text
+ANSWER RULE: "উ. ক" মানে ক এর text। "উ. ঘ" মানে ঘ এর text। "ক"/"খ" লিখবে না।
 
-ANSWER RULE: "উ. ক" মানে ক. এর text টাই উত্তর। উত্তর field এ "ক"/"খ" লিখবে না — option এর আসল text লিখবে।
+TYPE C output (প্রতি line): পুরো প্রশ্ন;উত্তর
 
-উদাহরণ output:
-Slow and steady ... the race.;win;wins;has won;won;wins
-Walk fast lest you ... miss the bus.;will;can;could;should;should
+নিয়ম:
+- Serial number বাদ দাও
+- "উত্তর:" prefix বাদ দাও, শুধু উত্তর রাখো
+- field এর ভেতরে semicolon নয়, pipe (|) দিয়ে আলাদা করো
+- footer, page reference, website বাদ দাও
 
-TYPE C — WRITTEN format (প্রতিটা line):
-পুরো প্রশ্ন (সব sub-question সহ);পুরো উত্তর বা ব্যাখ্যা
-
-উদাহরণ output:
-এক কথায় প্রকাশ করুন- ক.হরিণের চামড়া খ.উপকারীর অপকার করে যে গ.আগে জন্মেছে যে;অজীন | কৃতঘ্ন | অগ্রজ
-
-════════════════════════
-২-কলাম layout (MCQ):
-════════════════════════
-OCR এ ২ কলামে প্রশ্ন থাকলে বাম ও ডান আলাদা ২টি প্রশ্ন হিসেবে নাও।
-
-════════════════════════
-বাদ দেবে:
-════════════════════════
-- Serial number (১., ২., Q1. ইত্যাদি)
-- Page reference, footer, website, Facebook page
-- "উত্তর:" prefix — শুধু উত্তরের text রাখো
-- field এর ভেতরে ; ব্যবহার নয় — | দিয়ে আলাদা করো
-
-════════════════════════
-গণিতের নিয়ম:
-════════════════════════
-ভগ্নাংশ: ${'$'}\frac{a}{b}$ | ঘাত: ${'$'}x^{2}$ | মূল: ${'$'}\sqrt{x}$
-চিহ্ন: ∴ △ ∠ × ÷ ± ≤ ≥ ≠
-
-════════════════════════
 OCR TEXT:
-════════════════════════
 $ocrText
 """.trimIndent()
     }
@@ -106,62 +64,65 @@ $ocrText
         subTopic: String = ""
     ): GeminiResult = withContext(Dispatchers.IO) {
 
-        if (apiKey.isBlank()) return@withContext GeminiResult.Error("Gemini API Key নেই। Settings এ দিন।")
         if (ocrText.isBlank()) return@withContext GeminiResult.Error("OCR text খালি")
 
         val prompt = buildPrompt(ocrText, targetSheet, subject, subTopic)
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$apiKey"
-
-        val bodyJson = JSONObject().apply {
-            put("contents", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", prompt) })
-                    })
-                })
-            })
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.05)
-                put("maxOutputTokens", 8192)
-            })
-        }
 
         try {
+            // POST as form data to avoid URL length limit
+            val formBody = FormBody.Builder()
+                .add("action", "getAI")
+                .add("prompt", prompt)
+                .build()
+
             val req = Request.Builder()
-                .url(url)
-                .post(bodyJson.toString().toRequestBody("application/json".toMediaType()))
+                .url(SCRIPT_URL)
+                .post(formBody)
                 .build()
 
             val response = client.newCall(req).execute()
             val body = response.body?.string() ?: ""
 
+            Log.d(TAG, "Script response code: ${response.code}")
+            Log.d(TAG, "Body preview: ${body.take(300)}")
+
             if (!response.isSuccessful) {
-                Log.e(TAG, "API error ${response.code}: $body")
-                return@withContext GeminiResult.Error("API Error ${response.code}")
+                return@withContext GeminiResult.Error("Script Error ${response.code}")
             }
 
-            val rawText = JSONObject(body)
-                .getJSONArray("candidates").getJSONObject(0)
-                .getJSONObject("content")
-                .getJSONArray("parts").getJSONObject(0)
-                .getString("text").trim()
+            // Apps Script getAI returns raw Gemini JSON
+            val rawText = try {
+                JSONObject(body)
+                    .getJSONArray("candidates")
+                    .getJSONObject(0)
+                    .getJSONObject("content")
+                    .getJSONArray("parts")
+                    .getJSONObject(0)
+                    .getString("text")
+                    .trim()
+            } catch (e: Exception) {
+                Log.e(TAG, "JSON parse failed: ${e.message} | body: ${body.take(200)}")
+                return@withContext GeminiResult.Error("Response parse error: ${e.message}")
+            }
 
             val lines = rawText.lines()
                 .map { it.trim() }
                 .filter { line ->
                     line.isNotBlank()
                     && !line.startsWith("```")
-                    && !line.startsWith("═")
-                    && !line.startsWith("OUTPUT")
-                    && !line.startsWith("MCQ")
-                    && !line.startsWith("Written")
-                    && !line.startsWith("উদাহরণ")
                     && !line.startsWith("TYPE")
-                    && !line.startsWith("STEP")
+                    && !line.startsWith("FORMAT")
+                    && !line.startsWith("OCR")
+                    && !line.startsWith("উদাহরণ")
                     && line.contains(";")
                 }
 
-            Log.d(TAG, "Gemini OK: ${lines.size} questions")
+            if (lines.isEmpty()) {
+                Log.w(TAG, "No lines parsed. Raw text: $rawText")
+                return@withContext GeminiResult.Error("AI থেকে কোনো প্রশ্ন parse হয়নি।")
+            }
+
+            Log.d(TAG, "Parsed ${lines.size} questions OK")
             GeminiResult.Success(lines)
 
         } catch (e: Exception) {
