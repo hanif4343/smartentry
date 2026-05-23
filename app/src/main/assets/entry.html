@@ -560,7 +560,7 @@
             <div class="bg-white rounded-xl p-3 border border-blue-100 text-[10px] text-slate-600 space-y-1">
                 <p class="font-black text-blue-700 text-[11px]">📋 ফরম্যাট (প্রতি লাইন = একটি প্রশ্ন):</p>
                 <p><span class="font-bold text-green-700">MCQ →</span> প্রশ্ন ; অপ১ ; অপ২ ; অপ৩ ; অপ৪ ; সঠিকউত্তর ; ব্যাখ্যা(optional)</p>
-                <p><span class="font-bold text-orange-700">Written →</span> প্রশ্ন ; উত্তর ; ব্যাখ্যা(optional)</p>
+                <p><span class="font-bold text-orange-700">Written →</span> {প্রশ্ন ; উত্তর}<br>{পরের প্রশ্ন ; পরের উত্তর}</p>
                 <p><span class="font-bold text-emerald-700">Study →</span> {প্রশ্ন ; উত্তর লাইন১<br>উত্তর লাইন২...}<br>{পরের প্রশ্ন ; পরের উত্তর...}</p>
 
             </div>
@@ -2109,7 +2109,7 @@ function parseBulkLine(line, qtype) {
 }
 
 function getEntries(raw, qtype) {
-    if (qtype === 'Study') {
+    if (qtype === 'Study' || qtype === 'Written') {
         // Entries wrapped in {...} curly braces
         const entries = [];
         const regex = /\{([\s\S]+?)\}/g;
@@ -2118,17 +2118,16 @@ function getEntries(raw, qtype) {
             const entry = match[1].trim();
             if (entry) entries.push(entry);
         }
+        if (entries.length > 0) return entries;
         // Fallback: old "..." quote format
-        if (entries.length === 0) {
-            const regexOld = /"([\s\S]+?)"/g;
-            while ((match = regexOld.exec(raw)) !== null) {
-                const entry = match[1].trim();
-                if (entry) entries.push(entry);
-            }
+        const regexOld = /"([\s\S]+?)"/g;
+        while ((match = regexOld.exec(raw)) !== null) {
+            const entry = match[1].trim();
+            if (entry) entries.push(entry);
         }
-        // Final fallback: treat whole text as one entry
-        if (entries.length === 0 && raw.trim()) entries.push(raw.trim());
-        return entries;
+        if (entries.length > 0) return entries;
+        // Final fallback: line by line
+        return raw.split('\n').map(s => s.trim()).filter(Boolean);
     }
     return raw.split('\n').map(s => s.trim()).filter(Boolean);
 }
