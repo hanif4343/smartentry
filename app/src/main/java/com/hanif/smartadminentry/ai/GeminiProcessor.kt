@@ -24,9 +24,22 @@ object GeminiProcessor {
 
     private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String, qType: String = "MCQ"): String {
         val formatRule = when (qType) {
-            "Study"   -> "Each line: question;answer\nExample: রাষ্ট্রবিজ্ঞানের জনক কে?;এরিস্টটল"
-            "Written" -> "Each line: question;answer_or_explanation"
-            else      -> "Each line: question;opt1;opt2;opt3;opt4;correct_answer_text\nAnswer field: write option TEXT not ক/খ/গ/ঘ"
+            "Study" -> """Wrap EVERY entry in curly braces: {question;answer}
+Example output:
+{রাষ্ট্রবিজ্ঞানের জনক কাকে বলা হয়?;এরিস্টটল}
+{'The Laws' গ্রন্থের রচয়িতা কে?;প্লেটো}
+{Man is born free — উক্তিটি কার?;জ্যাঁ জ্যাক রুশো}"""
+            "Written" -> """Wrap EVERY entry in curly braces: {question;answer}
+Same category sub-questions go in ONE entry.
+Example output:
+{এক কথায় প্রকাশ: ক. হরিণের চামড়া খ. উপকারীর অপকার করে যে গ. আগে জন্মেছে যে;অজীন | কৃতঘ্ন | অগ্রজ}
+{সন্ধি বিচ্ছেদ: ক. সঞ্চয় খ. গ্রন্থাগার গ. প্রতীক্ষা;সম+চয় | গ্রন্থ+আগার | প্রতি+ঈক্ষা}
+{নিচের প্রশ্নগুলোর উত্তর দিন: ক. বাল্মীকি প্রতিভার রচয়িতা কে? খ. ক্রিয়াপদের মূল অংশকে কী বলে?;রবীন্দ্রনাথ ঠাকুর | ধাতু}"""
+            else -> """One line per MCQ: question;opt1;opt2;opt3;opt4;correct_answer_text
+Answer field: write option TEXT not ক/খ/গ/ঘ
+Example output:
+Slow and steady ... the race.;win;wins;has won;won;wins
+বাংলাদেশের রাজধানী?;ঢাকা;চট্টগ্রাম;খুলনা;রাজশাহী;ঢাকা"""
         }
         return """
 Convert OCR text into structured question data. Type: $qType
@@ -35,12 +48,12 @@ Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }}
 OUTPUT FORMAT:
 $formatRule
 
-STRICT:
-- Output data lines ONLY — no labels, no headers, no explanations
-- NO prefix (not "A:", "B:", "1.", nothing)
+STRICT RULES:
+- Output data ONLY — no labels, no headers, no explanations
+- NO prefix like "A:", "B:", "১.", nothing before the data
 - Remove serial numbers and "উত্তর:" prefix from answers
 - No semicolon inside a field — use pipe(|) instead
-- One entry per line
+- OCR এর সব প্রশ্ন দাও, কোনোটা বাদ দিও না
 
 OCR TEXT:
 $ocrText
