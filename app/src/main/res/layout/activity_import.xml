@@ -137,12 +137,66 @@
                         android:textColor="#1E293B"
                         android:layout_marginBottom="10dp"/>
 
+                    <!-- Question Type: MCQ / Written / Study -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="প্রশ্নের ধরন"
+                        android:textSize="11sp"
+                        android:textColor="#64748B"
+                        android:layout_marginBottom="4dp"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="10dp">
+
+                        <Button
+                            android:id="@+id/btn_type_mcq"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="MCQ"
+                            android:backgroundTint="#4F46E5"
+                            android:textColor="#FFFFFF"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            style="@style/Widget.MaterialComponents.Button"/>
+
+                        <Button
+                            android:id="@+id/btn_type_written"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="Written"
+                            android:backgroundTint="#94A3B8"
+                            android:textColor="#FFFFFF"
+                            android:textSize="12sp"
+                            style="@style/Widget.MaterialComponents.Button"/>
+
+                        <Button
+                            android:id="@+id/btn_type_study"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:text="Study"
+                            android:backgroundTint="#94A3B8"
+                            android:textColor="#FFFFFF"
+                            android:textSize="12sp"
+                            style="@style/Widget.MaterialComponents.Button"/>
+                    </LinearLayout>
+
+                    <!-- Sheet selector (hidden, auto-set) -->
                     <Spinner
                         android:id="@+id/spinner_sheet"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:background="@drawable/spinner_bg"
                         android:paddingStart="12dp"
+                        android:visibility="gone"
                         android:layout_marginBottom="8dp"/>
 
                     <EditText
