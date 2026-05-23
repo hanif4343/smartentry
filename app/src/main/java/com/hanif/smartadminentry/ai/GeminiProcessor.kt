@@ -22,24 +22,25 @@ object GeminiProcessor {
         .followSslRedirects(true)
         .build()
 
-    private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String): String {
+    private fun buildPrompt(ocrText: String, targetSheet: String, subject: String, subTopic: String, qType: String = "MCQ"): String {
+        val formatRule = when (qType) {
+            "Study"   -> "Each line: question;answer\nExample: রাষ্ট্রবিজ্ঞানের জনক কে?;এরিস্টটল"
+            "Written" -> "Each line: question;answer_or_explanation"
+            else      -> "Each line: question;opt1;opt2;opt3;opt4;correct_answer_text\nAnswer field: write option TEXT not ক/খ/গ/ঘ"
+        }
         return """
-Exam question formatter. Analyze OCR text, auto-detect type, output formatted lines.
+Convert OCR text into structured question data. Type: $qType
+Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }}
 
-Subject: ${subject.ifBlank { "—" }} | Sub-Topic: ${subTopic.ifBlank { "—" }} | Sheet: $targetSheet
+OUTPUT FORMAT:
+$formatRule
 
-TYPE DETECTION:
-A=STUDY: question+answer, no k/kh/g/gh options.
-B=MCQ: has k. kh. g. gh. options + "u." answer.
-C=WRITTEN: long question with sub-parts.
-
-OUTPUT (one line per question):
-A: question;answer
-B: question;opt1;opt2;opt3;opt4;answer_text (write option TEXT not "ক"/"খ")
-C: question;answer
-
-REMOVE: serial numbers, "উত্তর:" prefix, footer, page refs.
-NO semicolon inside fields — use pipe(|) instead.
+STRICT:
+- Output data lines ONLY — no labels, no headers, no explanations
+- NO prefix (not "A:", "B:", "1.", nothing)
+- Remove serial numbers and "উত্তর:" prefix from answers
+- No semicolon inside a field — use pipe(|) instead
+- One entry per line
 
 OCR TEXT:
 $ocrText
@@ -51,12 +52,13 @@ $ocrText
         ocrText: String,
         targetSheet: String = "Quiz",
         subject: String = "",
-        subTopic: String = ""
+        subTopic: String = "",
+        qType: String = "MCQ"
     ): GeminiResult = withContext(Dispatchers.IO) {
 
         if (ocrText.isBlank()) return@withContext GeminiResult.Error("OCR text খালি")
 
-        val prompt = buildPrompt(ocrText, targetSheet, subject, subTopic)
+        val prompt = buildPrompt(ocrText, targetSheet, subject, subTopic, qType)
 
         try {
             // POST JSON body — no URL length limit
