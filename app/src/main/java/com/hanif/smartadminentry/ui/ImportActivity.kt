@@ -25,6 +25,7 @@ class ImportActivity : AppCompatActivity() {
     private val parsedQuestions = mutableListOf<ParsedQuestion>()
     private val allOcrText = StringBuilder()
     private var isProcessing = false
+    private var selectedQType = "MCQ" // MCQ | Written | Study
     private var processingJob: Job? = null
 
     private val galleryPicker = registerForActivityResult(
@@ -77,6 +78,30 @@ class ImportActivity : AppCompatActivity() {
                 android.R.layout.simple_spinner_dropdown_item, sheets)
             val idx = sheets.indexOf(AppPrefs.defaultSheet)
             if (idx >= 0) binding.spinnerSheet.setSelection(idx)
+
+            // Question type toggle buttons
+            fun updateTypeButtons(type: String) {
+                selectedQType = type
+                val active = "#4F46E5"; val inactive = "#94A3B8"
+                binding.btnTypeMcq.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.parseColor(if (type == "MCQ") active else inactive))
+                binding.btnTypeWritten.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.parseColor(if (type == "Written") active else inactive))
+                binding.btnTypeStudy.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.parseColor(if (type == "Study") active else inactive))
+                // Auto-set sheet: Study→Study, else keep current
+                if (type == "Study") {
+                    val sIdx = sheets.indexOf("Study")
+                    if (sIdx >= 0) binding.spinnerSheet.setSelection(sIdx)
+                } else {
+                    val sIdx = sheets.indexOf("Quiz")
+                    if (sIdx >= 0) binding.spinnerSheet.setSelection(sIdx)
+                }
+            }
+            updateTypeButtons("MCQ")
+            binding.btnTypeMcq.setOnClickListener { updateTypeButtons("MCQ") }
+            binding.btnTypeWritten.setOnClickListener { updateTypeButtons("Written") }
+            binding.btnTypeStudy.setOnClickListener { updateTypeButtons("Study") }
 
             binding.etSubject.setText(AppPrefs.defaultSubject)
             binding.etSubTopic.setText(AppPrefs.defaultSubTopic)
@@ -196,6 +221,7 @@ class ImportActivity : AppCompatActivity() {
         if (apiKey.isBlank()) { showApiKeyDialog(); return }
 
         val sheet    = binding.spinnerSheet.selectedItem?.toString() ?: "Quiz"
+        val qType    = selectedQType
         val subject  = binding.etSubject.text.toString().trim()
         val subTopic = binding.etSubTopic.text.toString().trim()
         AppPrefs.defaultSubject  = subject
@@ -208,7 +234,7 @@ class ImportActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val result = GeminiProcessor.process(apiKey, ocrText, sheet, subject, subTopic)
+                val result = GeminiProcessor.process(apiKey, ocrText, sheet, subject, subTopic, qType)
                 isProcessing = false
                 binding.btnRunAi.isEnabled = true
                 hideProgress()
@@ -320,33 +346,62 @@ class ImportActivity : AppCompatActivity() {
     private fun copyPromptWithOcr() {
         val ocrText = binding.tvOcrResult.text.toString().trim()
         if (ocrText.isBlank()) { toast("আগে OCR চালান"); return }
-        val sheet    = binding.spinnerSheet.selectedItem?.toString() ?: "Quiz"
         val subject  = binding.etSubject.text.toString().trim()
         val subTopic = binding.etSubTopic.text.toString().trim()
+        val qType    = selectedQType
+
         val prompt = buildString {
             append("তুমি একটি পরীক্ষার প্রশ্নপত্র formatter।\n")
-            append("Subject: ${subject.ifBlank{"-"}} | Sub-Topic: ${subTopic.ifBlank{"-"}} | Sheet: $sheet\n\n")
-            append("নিচের OCR text থেকে প্রশ্ন বের করে এই format এ দাও:\n")
-            append("MCQ এর ফরমেট হবে-   প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;উত্তর\n")
-            append("Written এর ফরমেট হবে-   প্রশ্ন;উত্তর;ব্যাখ্যা\n\n")
-            append("RULES:\n")
-            append("১. প্রতিটি প্রশ্ন আলাদা line এ\n")
-            append("২. Serial number বাদ দাও\n")
-            append("৩. field এর ভেতরে ; ব্যবহার করো না\n")
-            append("৪. উত্তর = option এর আসল text (ক/খ নয়)\n")
-            append("৫. গণিত: ভগ্নাংশ \$\\frac{a}{b}\$, ঘাত \$x^{2}\$, ∴ △ ∠ × চিহ্ন ব্যবহার করো\n")
-            append("৬. Page number, footer, reference বাদ দাও\n\n")
-            append("উদাহরণ output:\n")
-            append("Slow and steady wins the race.;wins;lose;run;win;wins\n")
-            append("বাংলাদেশের রাজধানী কোথায়?;ঢাকা;চট্টগ্রাম;খুলনা;রাজশাহী;ঢাকা\n\n")
-            append("Wriiten এর উদাহরন হল এক কথায় প্রকাশ করুন- ক. হরিণের চামড়া- খ. উপকারীর অপকার করে যে- গ. আগে জন্মেছে যে- এখন আউটপুট হবে এরকম এক কথায় প্রকাশ করুন-ক.হরিনের চামড়া-,উপকারীর অপকার করে যে-, আগে জন্মেছে যে-;অজীন,কৃতঘ্ন,অগ্রজএরকম একই ক্যাটাগরির প্রশ্ন একই লাইনে থাকতে হবে. সন্ধি, কারক বা Prepostion Gender এরকম টপিকে একাধিক প্রশ্ন থাকে তবে সেটা একই প্রশ্নের আওতায় উপরের উদাহরন এর মত করে দিবে। আর যে  প্রশ্ন একাধিক নয় একটি শুধু সেটা একটিই রেখে ফরমটে দিবে। সব প্রশ্নে ত সাবপ্রশ্ন থাকেনা। যেমন সাধারন জ্ঞান সব একটাই একা একটা প্রশ্ন।আর একটা কথা ব্যখা শুধু গনিতে দরকার অন্য সাবজেক্টে দরকার নাই। OCR Text এর সব প্রশ্নই দিবে। বাদ দিবে না কোনোটা।\n\n")
-            append("OCR text select এ বানান ভুল করলে তুমি প্রশ্ন/অপশন/উত্তর দেখে বানান ঠিক করে দিবে।\n")
-            append("=== OCR TEXT ===\n")
+            append("Subject: ${subject.ifBlank{"-"}} | Sub-Topic: ${subTopic.ifBlank{"-"}} | Type: $qType\n\n")
+
+            when (qType) {
+                "Study" -> {
+                    append("OCR text থেকে প্রশ্ন ও উত্তর বের করে এই format এ দাও:\n")
+                    append("প্রতিটি entry curly brace দিয়ে wrap করবে: {প্রশ্ন;উত্তর}\n\n")
+                    append("RULES:\n")
+                    append("১. প্রতিটি entry আলাদা line এ\n")
+                    append("২. Serial number ও উত্তর: prefix বাদ দাও\n")
+                    append("৩. field এর ভেতরে ; নয় — | দিয়ে আলাদা করো\n")
+                    append("৪. footer, page reference বাদ দাও\n\n")
+                    append("উদাহরণ output:\n")
+                    append("{রাষ্ট্রবিজ্ঞানের জনক কাকে বলা হয়?;এরিস্টটল}\n")
+                    append("{'The Laws' গ্রন্থের রচয়িতা কে?;প্লেটো}\n")
+                    append("{Man is born free — উক্তিটি কার?;জ্যাঁ জ্যাক রুশো}\n")
+                }
+                "Written" -> {
+                    append("OCR text থেকে প্রশ্ন ও উত্তর বের করে এই format এ দাও:\n")
+                    append("প্রতিটি entry curly brace দিয়ে wrap করবে: {প্রশ্ন;উত্তর}\n\n")
+                    append("RULES:\n")
+                    append("১. একই ক্যাটাগরির sub-question একটি entry তে রাখো\n")
+                    append("২. Serial number ও উত্তর: prefix বাদ দাও\n")
+                    append("৩. field এর ভেতরে ; নয় — | দিয়ে আলাদা করো\n")
+                    append("৪. গণিতে পূর্ণ সমাধান দাও\n")
+                    append("৫. footer, page reference বাদ দাও\n\n")
+                    append("উদাহরণ output:\n")
+                    append("{এক কথায় প্রকাশ: ক. হরিণের চামড়া খ. উপকারীর অপকার করে যে;অজীন | কৃতঘ্ন}\n")
+                    append("{সন্ধি বিচ্ছেদ: ক. সঞ্চয় খ. গ্রন্থাগার;সম+চয় | গ্রন্থ+আগার}\n")
+                }
+                else -> {
+                    append("OCR text থেকে MCQ বের করে এই format এ দাও:\n")
+                    append("প্রশ্ন;অপশন১;অপশন২;অপশন৩;অপশন৪;সঠিক_উত্তর_text\n\n")
+                    append("RULES:\n")
+                    append("১. প্রতিটি প্রশ্ন আলাদা line এ\n")
+                    append("২. উত্তর field এ option এর আসল text (ক/খ/গ/ঘ নয়)\n")
+                    append("৩. Serial number বাদ দাও\n")
+                    append("৪. field এর ভেতরে ; নয় — | দিয়ে আলাদা করো\n\n")
+                    append("উদাহরণ output:\n")
+                    append("Slow and steady ... the race.;win;wins;has won;won;wins\n")
+                    append("বাংলাদেশের রাজধানী?;ঢাকা;চট্টগ্রাম;খুলনা;রাজশাহী;ঢাকা\n")
+                }
+            }
+
+            append("\n=== OCR TEXT ===\n")
             append(ocrText)
         }
+
         val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
         cm.setPrimaryClip(android.content.ClipData.newPlainText("prompt", prompt))
-        toast("✅ Prompt+OCR copied! Gemini এ paste করুন → result copy করে Bulk এ দিন")
+        toast("✅ $qType Prompt+OCR copied! Gemini এ paste করুন → result copy করে Bulk এ দিন")
     }
 
     private fun toast(msg: String) =
